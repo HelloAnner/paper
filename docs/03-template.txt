@@ -1,0 +1,121 @@
+模板与组件（如何新增一个文档模板）
+================================================================
+
+目标：新增文档模板 = 硬编码一个文件夹。不考虑通用性，不考虑跨模板复用。
+
+目录约定
+
+    cli/src/templates/<模板 id>/
+      template.ts                      必需，default export defineTemplate(...)
+      components/
+        <组件 id>/
+          component.ts                 必需，default export defineComponent(...)
+
+    · 文件夹名就是模板 id（也是 paper list 里的 id）
+    · components 下的文件夹名就是组件 id
+    · 新增模板不用登记：make build / make dev 会跑 scripts/gen-registry.ts
+      扫出所有含 template.ts 的文件夹，生成 src/generated/registry.ts
+    · 组件是显式注册的：template.ts 里 import 后放进 components: [...]
+
+模板契约（core/types.ts）
+
+    defineTemplate({
+      meta: {
+        id, name, format: "docx"|"pdf"|"html",
+        description,   // 产出什么
+        useWhen,       // 什么场景选它 —— AI 挑模板就看这句，要具体
+        tags?, page?,  // page 是 pdf/html 的页面参数（size/margin/footer/cover...）
+      },
+      schema,          // 数据契约，见下
+      sample?,         // 手写示例数据；缺省由 schema 的 example 推导
+      components: [],  // 组件数组，顺序不重要（按 meta.order 排）
+      async render(ctx) { return artifact; },   // 返回 docx/pdf/html/bytes
+    })
+
+组件契约
+
+    defineComponent({
+      meta: {
+        id, name, description,   // description 必填，会出现在 paper list / describe
+        order?,                  // 渲染顺序，越小越前，缺省 100
+        optional?,               // true = 有数据才出现
+        useWhen?,                // 可选组件的触发条件说明（给 AI 看）
+        when?: (data) => boolean // 自动触发判定
+      },
+      render(ctx) { ... }
+    })
+
+文档型模板（blocks 数组 + renderBlock）
+  当一个模板对应"一整篇长文档"时，别用一个组件渲染全文，而是：
+    · 数据侧：blocks[] 有序数组，每块带 type（见 docs/06-prd-html.txt）
+    · 模板侧：遍历 blocks，用 ctx.renderBlock(组件 id, 块) 把块交给负责它的组件
+    · 组件侧：实现可选的 renderBlock(ctx, block)，只处理自己那一类块
+  约定：
+    · 模板可以给块附加 __index（做锚点），组件从 ctx.block 读当前块
+    · ctx.renderBlock 在组件未选中时返回空（html ""、docx []），所以 -c prose 能只出文字稿
+    · ctx.use(id) 未选中时返回 []，可以直接 ...ctx.use(id)
+    · 组件读图/附件用 readAsset(ctx.assetDir, src)，assetDir = data.json 所在目录
+
+渲染上下文（RenderContext）
+
+    ctx.data          数据对象
+    ctx.selected      最终被选中的组件 id 数组
+    ctx.has(id)       某组件是否被选中
+    ctx.use(id)       渲染组件；未选中时 docx 返回 []，pdf/html 返回 undefined
+    ctx.useAll()      按 order 渲染全部已选组件
+    ctx.docx          DocxKit（docx 模板用）
+    ctx.pdf           PdfBuilder（pdf 模板用）
+    ctx.html          HtmlKit（html 模板用）
+    ctx.params        --set k=v 透传参数
+    ctx.renderBlock(id, block)  文档型模板用：把单个块交给某组件渲染
+    ctx.block         当前渲染的块（组件在 renderBlock 里读它）
+    ctx.assetDir      数据文件所在目录（解析图/附件的相对路径）
+    ctx.log(msg)      打印调试信息（走 stderr，不污染 --json）
+
+三种格式的返回约定
+
+    docx：组件返回 DocxBlock[]（Paragraph/Table），模板拼装后
+          return { kind: "docx", document: ctx.docx.document(blocks, {...}) }
+    pdf ：组件没有返回值，直接调用 ctx.pdf.h1(...) 等，
+          return { kind: "pdf", pdf: ctx.pdf }
+    html：组件返回 HTML 字符串，模板 return { kind: "html", html: ctx.html.page({...}) }
+
+组件选择规则（core/registry.ts）
+
+    -c/--component 给了？ ──是──► 只用指定的（顺序按用户给的顺序）
+            │
+            否
+            ▼
+      非 optional 的组件 ─────────► 必选
+      optional 且 when(data) 为真 ─► 自动出现
+      optional 且没命中 ──────────► 不出现（数据里没这块内容就别硬凑）
+
+写 render 的几条经验
+  · 数据可能缺字段，取值一律 String(x ?? "") / Array.isArray 判断后再用
+  · 组件内部不要 throw 业务错误；数据问题交给 schema 校验提前拦
+  · 想要"这段没数据就整块消失"，把这个组件标 optional + when
+  · docx 里空数组直接 spread 是安全的：...ctx.use("x")
+
+schema 写法（core/schema.ts）
+
+    字段名: {
+      type: "string" | "number" | "boolean" | "enum" | "string[]" | "object" | "array",
+      desc: "给 AI 看的中文说明：填什么、什么格式、给个例子",   // 必填
+      required?: true,
+      example?: 任意,          // sample 会用它，describe 也会展示
+      values?: ["a","b"],      // enum 可选值
+      fields?: { ... },        // object 的字段
+      items?: { type:"object", fields:{...} },   // 数组元素
+    }
+
+    嵌套二维数组（例如表格 rows）用 type:"array" + desc 说明结构即可。
+
+自测（新增模板后必跑）
+
+    cd cli
+    bun run registry && bunx tsc --noEmit
+    bun test                                  # 自动遍历所有模板跑样例渲染
+    bun run src/cli.ts list <id>              # 输出是否可读
+    bun run src/cli.ts gen <id> -d s.json -o /tmp/x.<ext>
+    bun run scripts/preview.ts /tmp/x.pdf 1,2  # pdf 导 png 肉眼看
+    textutil -convert txt /tmp/x.docx -stdout | head   # docx 核文字

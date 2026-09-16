@@ -1,0 +1,79 @@
+安装与开发流程
+================================================================
+
+make install 做四件事
+
+    1. cli 依赖            cd cli && bun install
+    2. 中文字体            cli/assets/fonts/NotoSansSC-{Regular,Bold}.ttf
+    3. 编译 CLI            bun build --compile -> cli/dist/paper
+                           -> $(PREFIX)/bin/paper   （PREFIX 默认 ~/.local）
+    4. 字体 + skill        $(PREFIX)/share/paper/fonts/*.ttf
+                           ~/.agents/skills/paper -> <repo>/skills/paper
+
+安装后自检
+
+    paper doctor
+    # ✓ bun / ✓ 模板 3 个 / ✓ 字体 / ✓ pdf 最小文档 / ✓ skill
+
+Makefile 目标
+
+    make              帮助
+    make install      安装 CLI + 字体 + skill 软链（推荐）
+    make install-cli  只装二进制
+    make install-fonts 只装字体
+    make install-skill 只装 skill 软链
+    make build        只编译到 cli/dist/paper
+    make dev ARGS='list'            源码模式运行
+    make list         列模板
+    make fonts        准备字体（下载 + 实例化）
+    make test / typecheck / check / clean / uninstall
+
+字体流水线（为什么这么绕）
+
+    google/fonts NotoSansSC[wght].ttf（可变字体，glyf）
+        │  cli/scripts/fetch-fonts.ts 下载
+        ▼
+    cli/assets/fonts/NotoSansSC-VF.ttf
+        │  cli/scripts/instance-font.py（fontTools 实例化 + 改 PostScript 名）
+        ├──► NotoSansSC-Regular.ttf  (wght=400)
+        └──► NotoSansSC-Bold.ttf     (wght=700)
+
+    依赖：python3 + fontTools（pip install fonttools）。
+    没有 python3 时会退化：两个权重都用可变字体，仍能出文档，只是粗体不生效。
+
+    otf/ttc 不能用：
+      · ttc 是字体集合，pdf-lib 只接受单字体文件；
+      · otf(CFF) 在 pdf-lib 的子集化下会乱码，且 paper 的稀疏子集只支持 glyf。
+
+字体查找顺序（core/fonts.ts）
+
+    1. PAPER_FONT_REGULAR / PAPER_FONT_BOLD / PAPER_FONTS_DIR 环境变量
+    2. ~/.local/share/paper/fonts             （make install 装这里）
+    3. $XDG_DATA_HOME/paper/fonts
+    4. <二进制目录>/../share/paper/fonts      （自定义 PREFIX）
+    5. cli/assets/fonts                       （源码模式）
+    6. 系统字体兜底（macOS Arial Unicode.ttf；Linux Noto）
+
+    paper doctor 会打印当前实际使用的字体路径；标注"系统兜底"说明该跑 make fonts。
+
+开发循环
+
+    make dev ARGS='list'                       # 源码模式，改完直接跑
+    make dev ARGS='gen weekly-report -d /tmp/d.json -o /tmp/a.docx'
+    cd cli && bun run scripts/preview.ts /tmp/a.pdf 1,2   # pdf 导 png 自查
+    make check                                 # typecheck + test + build
+
+目录清理与产物
+
+    cli/dist/      编译产物（可删，make clean）
+    cli/assets/fonts/*.ttf   字体（可删，make fonts 重新下）
+    生成的文档默认写在当前目录，建议输出到用户指定路径或 /tmp
+
+环境要求
+    bun >= 1.1（编译单文件二进制）
+    python3 + fontTools（只在准备字体时需要）
+    macOS/Windows/Linux 都可；--open 仅 macOS
+
+卸载
+    make uninstall         移除二进制与 skill 软链（保留字体）
+    make uninstall-skill   只移除 skill 软链

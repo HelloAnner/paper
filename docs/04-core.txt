@@ -1,0 +1,98 @@
+core 公共层（唯一允许复用的地方）
+================================================================
+
+    core/
+      errors.ts     统一错误类型与提示
+      args.ts       极简 argv 解析（含公共短参数映射）
+      output.ts     终端输出：--json / 中文表格对齐（CJK 宽度按 2 列）
+      fsx.ts        读写文件（自动建目录、JSON 报错友好）
+      schema.ts     数据契约：校验 / 拍平成表格 / 生成示例
+      richtext.ts   行内富文本：**粗体** / `代码` / ==强调==（支持嵌套）
+      types.ts      Template / Component / RenderContext / Artifact 契约
+      registry.ts   模板查询、组件排序与选择规则
+      run.ts        渲染执行器（组件缓存、pdf 两遍渲染）
+      artifact.ts   Artifact -> 文件字节
+      docx-kit.ts   docx 基础件
+      pdf-kit.ts    pdf 基础件（排版引擎）
+      html-kit.ts   html 基础件
+      fonts.ts      字体发现与来源提示
+      ttf.ts        sfnt 解析 / 打包 / 稀疏子集化
+
+docx-kit 能力（返回块数组，模板自己拼）
+
+    title(text, subtitle?)     大标题（左侧色条）
+    h1 / h2 / h3               分级标题
+    p / lines                  段落（lines 按 \n 拆段）
+    meta(text)                 小号灰色说明行
+    bullets / numbered         无序 / 有序列表（用真实编号定义，Word 里可继续）
+    kv([[label, value]])       两列无边框信息表
+    table({head, rows, widths, align, zebra, caption})
+    quote / code / rule / spacer / pageBreak
+    document(blocks, {title, author, footer, header, pageNumber, marginMm})
+        -> docx Document（A4 + 页边距 + 页眉页脚 + 中文字体默认样式）
+
+    字体：西文 Calibri，中文微软雅黑（docx 只存字体名，由打开文档的机器解析）
+
+pdf-kit 能力（顺序调用，内部维护 y 游标与分页）
+
+    title({subtitle, meta}) / cover({title, subtitle, meta, footer})
+    h1 / h2 / h3 / p / note / quote / rule
+    bullets / numbered
+    kv([[label, value]])                浅底标签 + 内容
+    table({head, rows, widths, align, caption, zebra})   跨页自动重画表头
+    metricCards([{label, value, hint}], columns)         指标大数字卡
+    spacer / pageBreak / newPage
+    setFooter(text)                     页脚文字（模板开头调用）
+    save()                              -> Uint8Array
+
+    页面：A4 / LETTER、页边距（pt）、页眉、页脚 + 页码；
+    中英混排换行：CJK 逐字断行、西文按单词断行、超长单词硬折；
+    第 1 页是封面时 meta.page 写 cover: true（封面不画页眉页脚、页码从正文算）。
+
+html-kit 能力（纯字符串）
+
+    title / h1 / h2 / p / meta / bullets / kv / table / quote / card / rule
+    inline(text)               -> **粗体** / `代码` / ==强调== 渲染成 HTML 片段
+    escapeHtml / raw           -> 转义与直出
+    page({title, body, css})   -> 自包含单文件 HTML（内联 CSS + 打印样式 A4）
+
+    设计风格（配色、字号、表格版式）不进 core：那是模板自己的资产，
+    例如 prd-html 的 style.ts 就是一份完整的设计规范。
+
+字体与 pdf 子集化（这套东西踩过的坑，别改回去）
+
+    问题 1：pdf-lib 自带的 subset（fontkit TTFSubset）对中文大字体会丢字
+            ——它的 glyf/loca 偏移与 4 字节对齐不一致。
+    问题 2：CFF(otf) 字体在 pdf-lib 里子集化后中文直接乱码。
+    问题 3：Noto Sans SC 的 locl 特性会把 "3.2" 里的数字换成另一套字形，
+            导致排版用的字形和实际画出来的不一致（间距怪、子集缺字）。
+
+    解法：只用 glyf 轮廓的 ttf + 自己做"保留字形 id 的稀疏子集"
+
+        fonts.ts  找到 ttf（NotoSansSC-Regular/Bold.ttf，或系统兜底）
+            │
+            ▼
+        第一遍渲染：完整字体排版，同时记录"每一段真正画上去的文本"
+            │
+            ▼
+        ttf.ts subsetFont()
+            · 用 font.layout(text) 收集字形 id（与 pdf-lib 编码时完全一致，
+              所以 locl 之类 GSUB 替换不会漏）
+            · 复合字形递归保留它引用的分量
+            · glyf/loca 重建（用到的字形原样复制，其余留空），
+              cmap/hmtx/name/OS2/post 原样保留 => 字形 id 不变 => 宽度、编码都不会错
+            │
+            ▼
+        第二遍渲染：嵌入子集（subset:false），产出 PDF
+
+    效果：一份 4 页报告只嵌 100~400KB 字体数据（原来 8-10MB），
+          中文、数字、标点、✓①Ⅷ 这类符号都正常。
+    嵌入时统一 features: { locl: false }，保证 layout 结果 == cmap 映射，稳定可预测。
+
+registry 的自动生成
+
+    scripts/gen-registry.ts
+        src/templates/*/template.ts  ──►  src/generated/registry.ts
+        跳过 _ 与 . 开头的目录；没有 template.ts 的目录不算模板
+
+    make build / make dev / make test / make typecheck 都会先跑它。

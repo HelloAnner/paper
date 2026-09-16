@@ -1,0 +1,17 @@
+# 依赖与构建产物
+node_modules/
+dist/
+out/
+
+# 字体（体积大，用 make fonts 重新下载，不进仓库）
+cli/assets/fonts/*.otf
+cli/assets/fonts/*.ttf
+cli/assets/fonts/*.ttc
+
+# 示例：真实 PRD 的迁移产物（含内部文档正文与内部示意图），默认不入公开仓库。
+# 确认可以公开后删掉下面这行；或只保留脚本、排除数据与图。
+examples/prd/
+
+# 系统与编辑器
+.DS_Store
+*.log

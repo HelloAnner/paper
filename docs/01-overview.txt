@@ -1,0 +1,94 @@
+paper —— 本地离线文档生成 CLI
+================================================================
+
+一句话
+  paper 把"固定排版模板 + 动态数据"变成稳定质量的 docx / pdf / html，
+  让 AI 负责内容、让模板负责排版。
+
+为什么不让 AI 直接写排版代码
+  AI 每次手写 LaTeX / HTML / docx 代码，字号、间距、分页都靠运气，第二次就变形。
+  paper 把排版固化进模板，AI 只做三件事：
+
+      AI 的活                      paper 的活
+      ───────────────────────      ────────────────────────────────
+      1. 选模板（读 useWhen）      排版：字体 / 间距 / 表格 / 页码
+      2. 填数据（按 schema）       中文字体嵌入 + 只嵌用到的字形
+      3. 选组件（可选）            校验数据、报错、落盘、自检
+
+仓库结构
+  paper/
+    Makefile                  make install / build / dev / fonts / check
+    docs/                     本目录，纯文本设计文档
+    skills/paper/             配套 skill（软链到 ~/.agents/skills/paper）
+    cli/
+      package.json            bun + typescript
+      scripts/
+        gen-registry.ts       扫描 templates/ 生成注册表
+        build.ts              bun build --compile -> dist/paper
+        fetch-fonts.ts        下载并可实例化 Noto Sans SC
+        instance-font.py      可变字体 -> 静态 ttf（fontTools）
+        preview.ts            把 pdf 某几页导出 png，肉眼验收用
+      src/
+        cli.ts                入口：命令路由 + 帮助 + 错误收敛
+        commands/             list / describe / sample / gen / doctor
+        core/                 公共层（唯一的复用区）
+        templates/            文档模板（每个模板一个文件夹）
+        generated/registry.ts 自动生成，不要手改
+      tests/cli.test.ts       契约测试 + 所有模板的样例渲染冒烟
+
+复用边界（重要）
+  core/ 是公共件，随便用；
+  templates/<a> 与 templates/<b>、以及同一模板下不同组件之间**不考虑复用**，
+  想抄就整块复制过去改，别为了"通用"把两个模板耦在一起。
+
+一个模板 = 固定框架 + 可插拔组件
+
+    analysis-report（分析报告）
+      ├── cover       封面（必选，整页）
+      ├── summary     执行摘要（必选）
+      ├── metrics     指标卡（可选：data.metrics 有内容才出现）
+      ├── sections    正文章节（可选）
+      ├── tables      数据表（可选）
+      └── conclusion  结论建议（可选）
+
+  必选组件保证文档骨架一致；可选组件跟着数据自动出现，
+  所以同一模板能同时应付"三行摘要"和"十页报告"。
+
+内置模板（v0.1）
+  weekly-report    工作周报（docx）
+  analysis-report  分析报告（pdf）
+  brief-html       一页速览（html）
+  prd-html         产品需求文档（html）—— 文档型模板
+
+两种模板形态
+  1. 拼装型：模板 render 里显式写死排版顺序，组件各管一段（周报、分析报告、速览）。
+  2. 文档型：data.json 里的 blocks[] 是一个有序数组（h2/h3/h4/p/list/quote/table/figure），
+     模板按顺序遍历，把每块交给"负责这类块"的组件：
+
+         blocks[] ──► 逐块分发 ──► prose / tables / figures ──► 一个 HTML
+                        │
+                        └── 用 -c 只选部分组件时，对应类型的块自动跳过
+
+     好处：长文档的顺序由数据决定（不用在代码里复述目录结构），同时保留
+     --component 的可选择粒度。契约见 docs/06-prd-html.txt。
+
+命令总览
+  paper list [<模板 id>]       列模板 / 列该模板的组件
+  paper describe <模板 id>     数据契约 + 组件 + 示例数据（AI 必读）
+  paper sample <模板 id>       输出示例数据 JSON
+  paper gen <模板 id> -d data.json -o out.docx
+  paper doctor                 环境自检（字体 / 模板 / pdf 链路）
+
+AI 使用流程
+
+    paper list                    ──►  挑一个模板（看 useWhen）
+    paper describe <id>           ──►  读字段说明，别猜
+    paper sample <id> > data.json ──►  拿骨架，替换成真实内容
+    paper gen <id> -d data.json   ──►  出文件
+    （pdf 用 scripts/preview.ts 导 png 自查；docx 用 textutil 核文字）
+
+约定
+  · 命令输出：--json 时 stdout 是纯 JSON，过程信息走 stderr，退出码 0/1。
+  · 新增模板不需要登记：文件夹建好，build/dev 会自动扫到。
+  · 改了命令或模板行为，必须同步更新 skills/paper 与 docs/*.txt。
+  · AGENTS.md 只由人修改，AI 不要动。
