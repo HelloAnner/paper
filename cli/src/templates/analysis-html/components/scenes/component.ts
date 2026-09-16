@@ -47,11 +47,13 @@ export default defineComponent({
     const families: Record<string, any>[] = (Array.isArray(block?.items) ? block.items : []).filter((item: unknown) => Boolean(item) && typeof item === "object");
     if (families.length === 0) return "";
 
-    const kicker = String(block.kicker ?? "").trim();
+    const blockKicker = String(block.kicker ?? "").trim();
     const cards: string[] = [];
 
     for (const family of families) {
       const title = String(family.title ?? "").trim();
+      // 家族小标优先用家族自己的 kicker（原文档是「业务领域 01」），缺省回落到块级 kicker
+      const kicker = String(family.kicker ?? "").trim() || blockKicker;
       const nested: Record<string, any>[] = (Array.isArray(family.items) ? family.items : []).filter((item: unknown) => Boolean(item) && typeof item === "object");
 
       if (!title) {

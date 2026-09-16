@@ -27,11 +27,11 @@ export { BLOCK_OWNER };
 /** blocks 的完整契约写在一行里：describe 时 AI 只读 schema，不需要再翻文档。 */
 const BLOCKS_DESC =
   "章节里的块，顺序即版面顺序，每块必须有 type。" +
-  "文字类：h3{text}；p{text，行内支持 **粗体**、单反引号代码、==强调==}；list{items,ordered?}；sub{text,tone:green|red|amber|blue}；callout{tone,title,text}（整段纯色结论框）或 callout{kicker,title,text,tone}（卡片式结论）或 callout{columns?,items:[{tone,kicker,title,text}]}（一组卡片，原文档的 .grid.grid-3）；banner{mark?,title,text}（truth-banner 醒目提示）；note{strong,text}（evidence-note 口径提示）。" +
+  "文字类：h3{text}；p{text，行内支持 **粗体**、单反引号代码、==强调==}；list{items,ordered?}；sub{text,tone:green|red|amber|blue}；callout{tone,title,text}（整段纯色结论框）或 callout{variant?,tone?,kicker,title,text}（卡片式结论，variant 决定卡片类名：insight -> .insight-card，kicker 渲染成 .signal、标题是 h3；priority -> .priority-card，kicker 渲染成 .rank、标题是 h3，tone 取 p0|p1|p2 也接受 red|amber|blue；缺省 -> .card.<tone>，kicker 渲染成 .metric.label、标题是 .chart-title）。成组卡片用 callout{variant?,columns?,items:[…]}，外层栅格分别是 .insight-grid / .priority-grid / .grid.grid-N；banner{mark?,title,text}（truth-banner 醒目提示）；note{strong,text}（evidence-note 口径提示）。" +
   "指标类：metrics{columns?,items:[{label,value,unit?,desc?,tone?}]}；flow{items:[{num,count,label,desc?,final?,connect?}],aria?,note?}（connect 是这一格与上一格之间的连接标签，缺省 →；final 让最后一格变绿）；tags{items}（字符串或 {text,none}）；kpis{items:[{value,label,tone:good|bad|空}]}（attribution-kpis，一般放进 panel 里）；stackedBar{aria?,items:[{percent,color}]}（color 取 green|red|amber|blue 或 #hex）；proofs{items:[{label,value,unit?,text,tone?}]}（proof-grid，一排放 4 张）；steps{items:[{phase,title,text}]}（roadmap 路线，一排放 4 步）；stats{items:[{value,label}]}（distribution-line，4 列）。" +
   "图表类：bars{aria?,items:[{name,sub?,percent,tone?,number,unit?}]}；dualBars{aria?,items:[{name,bars:[{label,value,percent,tone}]}]}；reasons{items:[{label,value}]}；heatmap{aria?,columns,rows:[{label,values,levels?}]}（levels 是 0-4 档位，省略时按全表最大值自动分 5 档，0 恒为 heat-0）；donut{segments:[{percent,color?}],inside:{value,label},title?,text?}（conic-gradient 按 segments 算，缺省蓝系三段 + 底色补满；带 title/text 时套成 chart-panel.concentration）。这些图表块只出内容本身，标题交给 panel。" +
-  "panel 是卡片容器：variant=chart 给 title/subtitle + blocks，渲染 .chart-panel；variant=attribution 给 step/title/text + blocks，渲染 .attribution-panel；要并排放两张归因卡就用 panel{variant:\"attribution\",items:[{step,title,text,blocks}]}，渲染 .attribution-grid。blocks 里的块照上面的规则写，仍由各自组件渲染。" +
-  "场景类：scenes{kicker?,items:[{title?,total?,totalUnit?,tone?,items:[{name,value,unit?,meta?,examples?}]}]}（某一组 title 为空表示只给一组条目，不套家族卡）。" +
+  "panel 是卡片容器：variant=chart 给 title/subtitle + blocks，渲染 .chart-panel；variant=attribution 给 step/title/text + blocks，渲染 .attribution-panel；两张归因卡并排时用 items 形式 panel{variant:\"attribution\",items:[{step,title,text,blocks}]}，外层固定是 .attribution-grid（两列），每个 item 一个 .attribution-panel。blocks 里的块照上面的规则写，仍由各自组件渲染。" +
+  "场景类：scenes{items:[{kicker?,title?,total?,totalUnit?,tone?,items:[{name,value,unit?,meta?,examples?}]}]}（家族小标 kicker 渲染成 .scene-family-kicker，原文档是「业务领域 01」这种，块级 kicker 作缺省兜底；某一组 title 为空表示只给一组条目，不套家族卡）。" +
   "结构类：table{caption?,head,rows}，单元格三种写法：字符串、{value,bar?}（数字列，bar 取 0-100 画 mini-bar）、{text,code?,className?}（主展示 + 灰色编号）、{tags}（字段标签，空数组渲染成「无」）；details{items:[{summary,open?,blocks}]}（blocks 里可再放 list/p/h3/callout）。";
 
 export default defineTemplate({
@@ -283,9 +283,9 @@ export default defineTemplate({
           },
           {
             type: "scenes",
-            kicker: "业务领域",
             items: [
               {
+                kicker: "业务领域 01",
                 title: "生产与设备",
                 total: "512",
                 totalUnit: "次 · 41.0%",
@@ -307,6 +307,7 @@ export default defineTemplate({
                 ],
               },
               {
+                kicker: "业务领域 02",
                 title: "安全与环保",
                 total: "330",
                 totalUnit: "次 · 26.4%",
@@ -329,6 +330,7 @@ export default defineTemplate({
                 ],
               },
               {
+                kicker: "业务领域 03",
                 title: "行政与后勤",
                 total: "213",
                 totalUnit: "次 · 17.1%",
@@ -463,6 +465,17 @@ export default defineTemplate({
             type: "p",
             text: "受阻不等于失败：同一次作业可能同时遇到多个受阻字段，因此各类受阻次数不能直接相加，也不等同于最终未完成的次数；==受阻字段里照片与关联设备两项占了近七成==。",
           },
+          { type: "sub", text: "先补什么能力", tone: "red" },
+          {
+            type: "callout",
+            variant: "priority",
+            items: [
+              { tone: "p0", kicker: "第一优先 · 受阻最多", title: "关联设备", text: "31 次作业因此无法继续，主要集中在生产设备与安全环保；补齐后最能直接提高完成率。" },
+              { tone: "p0", kicker: "第一优先 · 使用最广", title: "照片字段", text: "涉及 406 次作业、168 个不同检查表，是点检、检查与报修都会用到的基础能力。" },
+              { tone: "p1", kicker: "第二优先 · 场景集中", title: "成员 + 定位", text: "定位受阻主要出现在夜间与室外巡检；成员可以和巡检组共用一套人员选择方式。" },
+              { tone: "p2", kicker: "后续补齐 · 当前影响较小", title: "手写签名及附件", text: "手写签名虽然常见，但只有 3 次直接卡住提交；附件目前没有出现必填但无法填写。" },
+            ],
+          },
           {
             type: "panel",
             variant: "chart",
@@ -550,12 +563,15 @@ export default defineTemplate({
               ],
             ],
           },
+          { type: "sub", text: "建议跟进对象", tone: "green" },
           {
             type: "callout",
-            tone: "green",
-            kicker: "建议共创对象",
-            title: "一号车间点检班",
-            text: "领取 268 次、成功归档 92 次，同时遇到照片、关联设备与成员三类关键项受阻；适合作为能力升级的首批验证班组。",
+            variant: "insight",
+            items: [
+              { tone: "blue", kicker: "综合共创", title: "一号车间点检班", text: "领取 268 次、成功归档 92 次，同时遇到照片、关联设备与成员三类关键项受阻；适合验证多字段能力升级。" },
+              { tone: "blue", kicker: "多表单验证", title: "仓储物流点检组", text: "覆盖 12 个不同检查表，定位与照片两类阻碍同时存在，适合检验能力能否适应不同检查表。" },
+              { tone: "blue", kicker: "图片专项", title: "外围设施巡检组", text: "8 名活跃成员、6 个不同检查表，有 4 次因为照片必填但无法填写而受阻，是照片能力最清晰的专项样本。" },
+            ],
           },
         ],
       },

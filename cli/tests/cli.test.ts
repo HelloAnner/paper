@@ -200,6 +200,44 @@ describe("analysis-html 报告模型", () => {
     expect(html).toContain('class="concentration-copy"');
     expect(html).toContain('<div class="evidence-note"><strong>');
     expect(html).toContain('<div class="card green"><div class="metric label">最容易形成结果</div>');
+    expect(html).toContain('<div class="scene-family-kicker">业务领域 01</div>');
+    expect(html).toContain('<div class="insight-grid">');
+    expect(html).toContain('<div class="insight-card"><div class="signal">综合共创</div><h3>一号车间点检班</h3>');
+    expect(html).toContain('<div class="priority-grid">');
+    expect(html).toContain('class="priority-card p0"><div class="rank">第一优先 · 受阻最多</div><h3>关联设备</h3>');
+    expect(html).toContain('class="priority-card p1"');
+    expect(html).toContain('class="priority-card p2"');
+
+    // panel 的 items 形式：即使只有一张卡，容器也必须是 .attribution-grid
+    const single = await renderHtml({
+      title: "T",
+      sections: [{ id: "p", title: "P", blocks: [{ type: "panel", variant: "attribution", items: [{ step: "S", title: "T", text: "x" }] }] }],
+    });
+    expect(single).toContain('<div class="attribution-grid"><div class="attribution-panel">');
+  });
+
+  test("callout 三种卡片样式：card / insight / priority", async () => {
+    const html = await renderHtml({
+      title: "T",
+      sections: [
+        {
+          id: "cards",
+          title: "卡片",
+          blocks: [
+            { type: "callout", tone: "green", kicker: "口径", title: "单张卡片", text: "x" },
+            { type: "callout", variant: "insight", kicker: "综合共创", title: "白卡", text: "y" },
+            { type: "callout", variant: "priority", tone: "red", kicker: "第一优先", title: "优先级卡", text: "z" },
+            { type: "callout", variant: "insight", items: [{ kicker: "A", title: "B", text: "C" }] },
+            { type: "callout", variant: "priority", items: [{ tone: "amber", kicker: "D", title: "E", text: "F" }] },
+          ],
+        },
+      ],
+    });
+    expect(html).toContain('<div class="card green"><div class="metric label">口径</div><div class="chart-title">单张卡片</div>');
+    expect(html).toContain('<div class="insight-card"><div class="signal">综合共创</div><h3>白卡</h3><p>y</p></div>');
+    expect(html).toContain('<div class="priority-card p0"><div class="rank">第一优先</div><h3>优先级卡</h3><p>z</p></div>');
+    expect(html).toContain('<div class="insight-grid"><div class="insight-card">');
+    expect(html).toContain('<div class="priority-grid"><div class="priority-card p1">');
   });
 
   test("明细表三种单元格写法与折叠说明", async () => {

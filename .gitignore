@@ -8,9 +8,9 @@ cli/assets/fonts/*.otf
 cli/assets/fonts/*.ttf
 cli/assets/fonts/*.ttc
 
-# 示例：真实 PRD 的迁移产物（含内部文档正文与内部示意图），默认不入公开仓库。
-# 确认可以公开后删掉下面这行；或只保留脚本、排除数据与图。
-examples/prd/
+# 示例/迁移产物：里面通常是真实内部文档（正文与示意图），默认不入公开仓库。
+# 需要公开时，把内容换成脱敏样例，或只保留脚本、排除数据与图。
+examples/
 
 # 系统与编辑器
 .DS_Store

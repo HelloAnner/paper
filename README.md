@@ -20,6 +20,7 @@ paper doctor          # 自检
 ```
 
 依赖 [bun](https://bun.sh)（编译单文件二进制）；准备 PDF 中文字体时需要 `python3 + fontTools`。
+两套内置模板都是 HTML，字体流水线目前只服务于 `core/pdf-kit` 的自检与将来的 PDF 模板 —— 想跳过可以只跑 `make install-cli`。
 
 ## 使用
 
@@ -38,13 +39,15 @@ paper gen prd-html -d data.json -o 文字稿.html -c prose   # 只出某几类�
 
 | 模板 id | 格式 | 产出 |
 |---------|------|------|
-| `weekly-report` | docx | 工作周报：概况 + 指标 + 进展 + 风险 + 下阶段计划 |
-| `analysis-report` | pdf | 分析报告：封面 + 摘要 + 指标卡 + 章节 + 数据表 + 结论（A4 可直接打印） |
-| `brief-html` | html | 一页速览：要点 + 键值 + 表格，单文件可分享 |
+| 模板 id | 格式 | 场景 |
+|---------|------|------|
 | `prd-html` | html | 产品需求文档：页眉条 + 标题区 + 两列目录 + 多级标题 + 数据表（状态矩阵）+ 内联 SVG 图 |
+| `analysis-html` | html | 数据分析报告：导航 + hero 结论 + 指标卡 + 行为链路 + 进度条 + 热力网格 + 场景卡 + 明细表 |
 
-两个形态：**拼装型**（模板写好排版顺序，组件各管一段）与**文档型**（`blocks[]` 有序数组，
-逐块分发给 `prose / tables / figures`，顺序由数据决定，同时保留 `-c` 的可选粒度）。
+两套模板都是**文档型**：数据用有序结构描述全文，模板逐块分发给对应组件，
+顺序由数据决定，同时保留 `-c` 的可选粒度（prd-html 用 `blocks[]`，analysis-html 用 `sections[].blocks[]`）。
+docx / pdf 的公共件（`core/docx-kit.ts`、`core/pdf-kit.ts`、`core/ttf.ts`）保留在 core 里，
+目前没有内置 docx / pdf 模板。
 
 ## 目录结构
 

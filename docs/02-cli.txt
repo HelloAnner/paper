@@ -67,7 +67,7 @@ CLI 设计（命令 / 参数 / 输出契约）
 错误与提示示例
 
     ✗ 数据校验失败 metrics[0].value：缺少必填字段（本周数值，带单位，例如「22.1%」）
-      提示：参考 paper describe weekly-report 的字段说明，或 paper sample weekly-report 重新生成示例
+      提示：参考 paper describe prd-html 的字段说明，或 paper sample prd-html 重新生成示例
 
   常见错误码（core/errors.ts）
     E_USAGE    参数用错（拼错子命令、漏 -d）

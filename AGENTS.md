@@ -18,3 +18,6 @@ paper cli ： 专注生成本地离线文档的 cli；
 详细设计在 docs 下的 txt 文档；
 
 skills文件夹 ： paper 需要配套 skill 协助说明如何使用这个 cli ， 记得及时修改，保持和逻辑保持一致；
+
+
+每一次功能改动和验证结束后， 及时自动  commit 和 push

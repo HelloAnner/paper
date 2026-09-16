@@ -43,34 +43,37 @@ paper —— 本地离线文档生成 CLI
 
 一个模板 = 固定框架 + 可插拔组件
 
-    analysis-report（分析报告）
-      ├── cover       封面（必选，整页）
-      ├── summary     执行摘要（必选）
-      ├── metrics     指标卡（可选：data.metrics 有内容才出现）
-      ├── sections    正文章节（可选）
-      ├── tables      数据表（可选）
-      └── conclusion  结论建议（可选）
+    prd-html（产品需求文档）
+      ├── masthead  页眉条（必选）
+      ├── title     标题区（必选）
+      ├── toc       阅读目录（可选：有 tocLabel 时出现）
+      ├── prose     多级标题 / 段落 / 列表 / 引用（必选）
+      ├── tables    数据表（可选：数据里出现 table 块才出现）
+      ├── figures   内联 SVG 图（可选：出现 figure 块才出现）
+      └── footer    落款（可选）
 
   必选组件保证文档骨架一致；可选组件跟着数据自动出现，
-  所以同一模板能同时应付"三行摘要"和"十页报告"。
+  所以同一模板能同时应付"三行摘要"和"十几页长文"。
 
-内置模板（v0.1）
-  weekly-report    工作周报（docx）
-  analysis-report  分析报告（pdf）
-  brief-html       一页速览（html）
-  prd-html         产品需求文档（html）—— 文档型模板
+内置模板（v0.2，两套都是 HTML）
+  prd-html       产品需求文档 —— blocks 文档型：多级标题 + 数据表（状态矩阵）+ 内联 SVG 图
+  analysis-html  数据分析报告 —— sections 结构：指标卡 + 行为链路 + 进度条 + 热力网格 + 场景卡 + 明细表
 
 两种模板形态
-  1. 拼装型：模板 render 里显式写死排版顺序，组件各管一段（周报、分析报告、速览）。
-  2. 文档型：data.json 里的 blocks[] 是一个有序数组（h2/h3/h4/p/list/quote/table/figure），
-     模板按顺序遍历，把每块交给"负责这类块"的组件：
+  1. 拼装型：模板 render 里显式写死排版顺序，组件各管一段（数据量小、结构固定的文档）。
+  2. 文档型：data.json 用有序结构描述全文（prd-html 是 blocks[]，analysis-html 是 sections[].blocks[]），
+     模板按顺序把每个块交给"负责这类块"的组件（ctx.renderBlock），
+     顺序由数据决定，同时保留 -c 的可选粒度。
 
-         blocks[] ──► 逐块分发 ──► prose / tables / figures ──► 一个 HTML
-                        │
-                        └── 用 -c 只选部分组件时，对应类型的块自动跳过
+     数据 ──► 逐块分发 ──► prose / tables / figures ──► 一个 HTML
+                │
+                └── 用 -c 只选部分组件时，对应类型的块自动跳过
 
      好处：长文档的顺序由数据决定（不用在代码里复述目录结构），同时保留
-     --component 的可选择粒度。契约见 docs/06-prd-html.txt。
+     --component 的可选择粒度。契约见 docs/06-prd-html.txt 与 docs/07-data-report-html.txt。
+
+  两种形态都保留 docx / pdf 的公共件（core/docx-kit.ts、core/pdf-kit.ts、core/ttf.ts），
+  但目前没有内置 docx / pdf 模板 —— 等具体文档样式定了，再按模板文件夹硬编码一份。
 
 命令总览
   paper list [<模板 id>]       列模板 / 列该模板的组件

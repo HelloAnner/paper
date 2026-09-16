@@ -22,18 +22,59 @@ const CALLOUT_STYLE: Record<string, string> = {
   blue: "background:var(--blue-bg);border-color:var(--blue-border)",
 };
 
+/** priority 卡片的档位：原 CSS 只有 p0/p1/p2，顺手接受语义色方便 converter 直传。 */
+const PRIORITY_LEVELS: Record<string, string> = {
+  p0: "p0",
+  p1: "p1",
+  p2: "p2",
+  red: "p0",
+  amber: "p1",
+  blue: "p2",
+};
+
+/** 成组卡片的外层栅格：insight 三列、priority 1.2/1.2/1/1，缺省卡片组按 columns。 */
+const CARD_GRIDS: Record<string, string> = {
+  insight: "insight-grid",
+  priority: "priority-grid",
+};
+
 /**
- * 卡片式结论框：.card.<tone> + .metric.label(kicker) + .chart-title(title) + p(text)。
- * 原文档里成组出现（.grid.grid-3），所以 callout 也接受 items 数组一次出多张。
+ * 卡片式结论框：三种类名对应原 CSS 里三套互不通用的样式，内部结构也不同。
+ *   insight  -> .insight-card（kicker=.signal / h3 / p）
+ *   priority -> .priority-card.pN（kicker=.rank / h3 / p）
+ *   缺省      -> .card.<tone>（kicker=.metric.label / .chart-title / p）
  */
-function card(ctx: any, item: Record<string, any>): string {
-  const tone = TONES.includes(String(item.tone ?? "")) ? " " + String(item.tone) : "";
+function card(ctx: any, item: Record<string, any>, variant: string): string {
+  const tone = String(item.tone ?? "").trim();
   const kicker = String(item.kicker ?? "").trim();
   const title = String(item.title ?? "").trim();
   const text = String(item.text ?? "").trim();
   if (!kicker && !title && !text) return "";
+
+  if (variant === "insight") {
+    return (
+      "<div class=\"insight-card\">" +
+      (kicker ? "<div class=\"signal\">" + inline(ctx, kicker) + "</div>" : "") +
+      (title ? "<h3>" + inline(ctx, title) + "</h3>" : "") +
+      (text ? "<p>" + inline(ctx, text) + "</p>" : "") +
+      "</div>"
+    );
+  }
+
+  if (variant === "priority") {
+    const level = PRIORITY_LEVELS[tone] ?? "";
+    return (
+      "<div class=\"priority-card" + (level ? " " + level : "") + "\">" +
+      (kicker ? "<div class=\"rank\">" + inline(ctx, kicker) + "</div>" : "") +
+      (title ? "<h3>" + inline(ctx, title) + "</h3>" : "") +
+      (text ? "<p>" + inline(ctx, text) + "</p>" : "") +
+      "</div>"
+    );
+  }
+
+  const cls = TONES.includes(tone) ? " " + tone : "";
   return (
-    "<div class=\"card" + tone + "\">" +
+    "<div class=\"card" + cls + "\">" +
     (kicker ? "<div class=\"metric label\">" + inline(ctx, kicker) + "</div>" : "") +
     (title ? "<div class=\"chart-title\">" + inline(ctx, title) + "</div>" : "") +
     (text ? "<p style=\"font-size:12px;margin-top:7px\">" + inline(ctx, text) + "</p>" : "") +
@@ -118,21 +159,27 @@ export default defineComponent({
     }
 
     if (type === "callout") {
+      const variant = String(block.variant ?? "").trim();
       const items: Record<string, any>[] = (Array.isArray(block.items) ? block.items : []).filter((item: unknown) => Boolean(item) && typeof item === "object");
 
-      // 给了 items：一组卡片（原文档的 .grid.grid-3 卡片组）
+      // 给了 items：一组卡片；insight / priority 用原文档自己的栅格，缺省按 columns
       if (items.length > 0) {
+        const cards = items.map((item) => card(ctx, item, variant)).filter(Boolean);
+        if (cards.length === 0) return "";
+        const presetGrid = CARD_GRIDS[variant];
+        if (presetGrid) return "<div class=\"" + presetGrid + "\">" + cards.join("") + "</div>";
         const columns = Number(block.columns ?? 3) || 3;
         const preset = columns === 2 || columns === 3 || columns === 5;
         const cls = preset ? "grid grid-" + columns : "grid";
         const style = preset ? "" : " style=\"grid-template-columns:repeat(" + columns + ",minmax(0,1fr))\"";
-        const cards = items.map((item) => card(ctx, item)).filter(Boolean);
-        if (cards.length === 0) return "";
         return "<div class=\"" + cls + "\"" + style + ">" + cards.join("") + "</div>";
       }
 
-      // 给了 kicker：单张卡片（.card + .metric.label + .chart-title + p）
-      if (String(block.kicker ?? "").trim().length > 0) return card(ctx, block);
+      // insight / priority 的单张卡片
+      if (variant === "insight" || variant === "priority") return card(ctx, block, variant);
+
+      // 缺省样式：给了 kicker 就是单张 .card.<tone>
+      if (String(block.kicker ?? "").trim().length > 0) return card(ctx, block, "");
 
       // 否则是整段的纯色结论框
       const title = String(block.title ?? "").trim();

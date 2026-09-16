@@ -35,10 +35,10 @@ AI 的说明书：模板定位与适用场景、**逐字段的数据契约**、�
 ```json
 {
   "ok": true,
-  "template": "weekly-report",
-  "format": "docx",
-  "out": "/abs/path/weekly-report.docx",
-  "bytes": 11972,
+  "template": "prd-html",
+  "format": "html",
+  "out": "/abs/path/prd.html",
+  "bytes": 30782,
   "components": ["summary", "metrics", "progress"],
   "dataFile": "/abs/path/data.json"
 }

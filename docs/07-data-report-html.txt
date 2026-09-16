@@ -1,0 +1,201 @@
+数据分析报告（HTML）模板：设计复刻与数据契约
+================================================================
+
+目标
+  把一份"现代数据报告"HTML（暖白底 + 卡片 + 数据可视化块）变成 paper 的 html 模板：
+  同一份 data.json + 同一套 CSS，产出与原始文档一致的排版。
+  只做 html；docx / pdf 是各自独立的模块。
+
+原始文档长什么样
+  · 暖白背景 #F8F7F4，白色卡片 #FFF，圆角 14px（小件 10px），1px 描边 #E5E2DB
+  · 顶部 sticky nav：左边品牌，右边 5 个锚点链接，高 56px，毛玻璃背景
+  · hero 区：蓝色 eyebrow（带 18x3 短横线）→ h1(46px 收紧字距) → 导语(17px) →
+    三枚 meta 小胶囊 → hero-verdict（绿色卡片：序号方块 + h2 + 说明）
+  · 正文按 section 组织：每节最大宽 1080px、左右留白 40px、上下 58px，节间 1px 分隔线；
+    section-head = 标题(26px) + 导语 + 右侧小字说明
+  · 小节标签 .sub-label：18x3 色条 + 13px 加粗文字，四种色（green/red/amber/blue）
+  · 数据可视化块：指标卡、行为链路卡、进度条行、双指标行、原因行、热力网格、
+    场景家族卡、字段标签、归因 KPI、堆叠条、明细表、折叠说明
+  · 四色语义：green #0D9668 / red #D94F4F / amber #C2850E / blue #3B6CE7，
+    每种都有 -bg / -border 配套色
+
+设计令牌（:root）
+  --bg #F8F7F4   --surface #FFF   --surface-alt #F3F1EC
+  --text #1A1815 --text-2 #52504B --text-3 #908D85
+  --border #E5E2DB --border-light #EDEAE4
+  --green #0D9668 --green-bg #EEFBF5 --green-border #C6F0DC
+  --red   #D94F4F --red-bg #FDF2F2   --red-border #F5C6C6
+  --amber #C2850E --amber-bg #FEF9EC --amber-border #F5E3B5
+  --blue  #3B6CE7 --blue-bg #F0F4FE  --blue-border #C5D4F5
+  --radius 14px  --radius-sm 10px
+
+  字体：Inter, Noto Sans SC, -apple-system, sans-serif；正文 15px / 行高 1.7
+
+CSS 处理要求
+  · 原文档 CSS 里 .reveal{opacity:0;translateY(14px)} 依赖 JS 加 .show 才显示，
+    静态产出必须去掉这个机制：模板直接不使用 reveal 类（CSS 可保留但不要用在元素上）。
+  · 原文档的 <script> 不复制。
+  · @media print / max-width 断点保留。
+
+数据结构（data.json）
+
+  {
+    "brand": "简道云智能填报 · 数据报告",     // nav 左侧品牌
+    "nav": [{"text": "使用全景", "href": "overview"}],  // 可选；缺省由 sections 的 id/title 生成
+    "eyebrow": "生产数据深度分析",
+    "title": "智能填报：需求已经进入核心业务流程，\n真正的缺口集中在关联与成员字段",  // \n 会渲染成 <br>
+    "lead": "基于生产环境全部可用填报记录……",   // hero 导语
+    "meta": ["生产环境 · 只读分析", "2026-08-19 — 2026-09-01", "539 次当前分析样本"],
+    "verdict": { "index": "01", "title": "路线判断：第一优先补齐关联字段与成员字段", "text": "……" },
+    "footer": "……",                            // 可选，页面尾部说明
+    "sections": [
+      {
+        "id": "overview",                      // 锚点 id（nav 用）
+        "title": "使用全景",
+        "lead": "从"尝试读取表单"到"成功写入数据"……",
+        "sideNote": "下方统计的是操作次数，不是人数",   // 可选，右侧小字
+        "blocks": [ ... ]
+      }
+    ]
+  }
+
+块（section.blocks[]）—— 顺序即版面顺序
+
+  文本类
+    { "type": "h3", "text": "753 次发起中，202 次确实没有形成表单" }
+    { "type": "p", "text": "正文，支持 **粗体**、§代码§、==强调==。" }
+    { "type": "list", "ordered": false, "items": ["第一条", "第二条"] }
+    { "type": "sub", "text": "行为链路", "tone": "blue" }        // .sub-label.blue
+    { "type": "callout", "tone": "green", "title": "…", "text": "…" }  // 卡片式结论框
+
+  数据可视化类
+    { "type": "metrics", "columns": 5, "items": [
+        { "label": "发起智能填报", "value": "753", "unit": "次", "desc": "130 个租户开始尝试填写", "tone": "blue" } ] }
+        -> .grid.grid-5 + .card.metric.blue（label / value + small / desc）
+
+    { "type": "flow", "items": [
+        { "num": "01 · 215 个租户", "count": "1004", "label": "读取表单", "desc": "…", "final": false } ] }
+        -> .flow-row + .flow-card（最后一项可 final: true -> 绿底）
+
+    { "type": "bars", "items": [
+        { "name": "关联字段", "sub": "8 个场景命中", "percent": 72.3, "tone": "blue", "number": "149", "unit": " · 31.6%" } ] }
+        -> .bar-row：name(+small) / .track>.fill.tone(width%) / .number
+
+    { "type": "dualBars", "items": [
+        { "name": "关联字段", "bars": [
+            { "label": "涉及", "value": "149 · 31.6%", "percent": 72.3, "tone": "blue" },
+            { "label": "受阻", "value": "32", "percent": 100, "tone": "red" } ] } ] }
+        -> .blocker-row：.blocker-name + 两个 .dual-metric(.dual-head + .track>.fill)
+
+    { "type": "reasons", "items": [{ "label": "字段值、表单目标或请求未被接受", "value": "120 · 59.4%" }] }
+        -> .reason-row（span + strong）
+
+    { "type": "heatmap", "columns": ["关联","成员","图片","部门","附件"], "rows": [
+        { "label": "生产与现场运营", "values": [13, 0, 8, 1, 0], "levels": [4,0,4,1,0] } ] }
+        -> .heatmap + .heat-cell（首行 heat-head、首列 heat-label，值格 heat-0..heat-4）
+        levels 可省略：省略时按该表最大值分 5 档（0 -> heat-0）
+
+    { "type": "scenes", "kicker": "场景家族", "items": [
+        { "title": "协作与事项闭环", "total": "102", "totalUnit": "次 · 18.9%", "items": [
+            { "name": "需求、问题与整改闭环", "value": "80", "unit": "14.8%",
+              "meta": "23 个不同表单 · 12 个租户",
+              "examples": "出现最多的实际表单名：……" } ] } ] }
+        -> .scene-family-grid + .scene-family（head: kicker/h3 + total）+ .scene-item*
+        单项 scenss 也可以只给一组 items（title 为空时不渲染家族卡，直接排 scene-item 网格）
+
+    { "type": "tags", "items": ["关联 8", "成员 1"] }             // .field-tags + .field-tag
+    { "type": "kpis", "items": [
+        { "value": "160", "label": "简道云确认成功", "tone": "good" } ] }   // .attribution-kpis（tone: good/bad/空）
+    { "type": "stackedBar", "items": [
+        { "percent": 58, "color": "green" },
+        { "percent": 16.3, "color": "red" },
+        { "percent": 14.9, "color": "amber" },
+        { "percent": 10.8, "color": "#B7B3A9" } ] }
+        -> .stacked-bar（color 可用语义名或 #hex）
+
+  结构化类
+    { "type": "table", "caption": "…", "head": ["租户","读取表单",…], "rows": [
+        [ { "text": "帆软软件有限公司", "code": "…9089f3", "className": "tenant-name" },
+          { "value": "168", "bar": 100 },
+          { "tags": ["关联 8", "成员 1"] } ] ] }
+        -> <table> + caption + thead/tbody；单元格三种写法：
+           · 字符串                       -> <td>
+           · { "value": "168", "bar": 100 } -> <td class="num-cell">168<span class="mini-bar"><i style="width:100%"></i></span></td>
+           · { "text": "…", "code": "…", "className": "tenant-name" } -> <td class="tenant-name">…<code>…</code></td>
+           · { "tags": ["关联 8"] }      -> <td><div class="field-tags">…</div></td>
+
+    { "type": "details", "items": [
+        { "summary": "样本来自哪里", "open": true,
+          "blocks": [{ "type": "list", "items": ["…"] }] } ] }
+        -> <details open> + <summary> + .detail-body
+
+v2 补充：第一版契约漏掉的组件（复刻时必须支持）
+  原文档比第一版契约更丰富，下面这些在原文档里都有独立样式，必须作为独立块渲染：
+
+  { "type": "panel", "variant": "chart", "title": "字段使用范围与实际受阻次数",
+    "subtitle": "…", "blocks": [ ... ] }
+      -> .chart-panel + .chart-title + .chart-subtitle + 内部块
+  { "type": "panel", "variant": "attribution", "step": "第一段 · 从发起填写到形成表单",
+    "title": "753 次发起中，202 次确实没有形成表单", "text": "…", "blocks": [ ... ] }
+      -> .attribution-panel + .step + h3 + p + 内部块（kpis / stackedBar / note）
+  多个 attribution 面板并排时（原文档的 .attribution-grid 两列）用一个 panel 包起来：
+  { "type": "panel", "variant": "attribution",
+    "items": [ { "step": "第一段 …", "title": "…", "text": "…", "blocks": [ ... ] }, { … } ] }
+      -> .attribution-grid + 每个 item 一个 .attribution-panel
+
+  scenes 的每个家族支持可选 kicker（原文档是「业务领域 01」这种小标）：
+  { "type": "scenes", "items": [ { "kicker": "业务领域 01", "title": "协作与事项闭环", … } ] }
+      -> .scene-family-kicker + h3 + .scene-family-total
+
+  { "type": "callout", "variant": "insight", "tone": "blue", "kicker": "综合共创",
+    "title": "招荣", "text": "…" }
+      variant 决定卡片类名（样式在原 CSS 里各不相同，不能混用）：
+        insight  -> .insight-card，kicker 渲染成 .signal，title 是 <h3>
+        priority -> .priority-card，kicker 渲染成 .rank，title 是 <h3>
+        缺省      -> .card.<tone>，kicker 渲染成 .metric.label，title 是 .chart-title
+      （原文档 19 张卡片：9 张 .card.<tone> + 6 张 .insight-card + 4 张 .priority-card）
+
+  { "type": "banner", "mark": "!", "title": "不能把 753 − 160 理解成 593 次失败", "text": "…" }
+      -> .truth-banner（左侧方块 + strong + p）
+
+  { "type": "proofs", "items": [{ "label": "…", "value": "70", "unit": "次", "text": "…", "tone": "amber" }] }
+      -> .proof-grid + .proof-card.<tone>（label / value+small / p）
+
+  { "type": "steps", "items": [{ "phase": "第一阶段 · 最优先", "title": "关联字段 + 成员字段",
+      "text": "优先解锁生产、人员、财务、客户和任务分派场景。" }] }
+      -> .roadmap-step 网格（phase / h3 / p）
+
+  { "type": "stats", "items": [{ "value": "22.3%", "label": "第 1 名" }] }
+      -> .distribution-line（4 列，首三列有蓝色系上边框）
+
+  { "type": "donut", "segments": [{ "percent": 22.3 }, { "percent": 18.1 }, { "percent": 12.1 }],
+    "inside": { "value": "52.5%", "label": "前 10 名占比" } }
+      -> .donut（conic-gradient 由 segments 生成，默认蓝系；inside 居中）
+
+  { "type": "note", "strong": "能力限制不能从这 202 次里直接推算。", "text": "…" }
+      -> .evidence-note
+
+  flow 的第 2..N 项支持可选 "connect"：卡片之间的 .flow-connector 标签
+  （原文档是 75.0% / 73.2% / 254 张 / 58.0%，这些不能丢）
+
+  仍未纳入（纯装饰，原文档各 1~2 处）：.legend 图例、.chart-panel 里的轴标签。
+  # 兼容：converter 第一版把这些内容折成了 sub + callout 的组合，v2 要求改成上面的独立块。
+
+模板组件（paper list 可见）
+  nav       必选  顶部导航（品牌 + 锚点）
+  hero      必选  eyebrow + 标题 + 导语 + meta 胶囊 + 结论框
+  prose     必选  h3 / p / list / sub / callout
+  metrics   可选  metrics / flow / tags / kpis / stackedBar
+  charts    可选  bars / dualBars / reasons / heatmap
+  scenes    可选  scenes
+  tables    可选  table / details
+  footer    可选  页脚说明
+
+  块分发：模板遍历 sections，每节渲染 <section class="section" id> + section-head，
+  再逐块调用 ctx.renderBlock(<负责该块的组件 id>, 块)，保证顺序 + -c 可选。
+
+复刻验收标准
+  1. paper gen 产出的 HTML 与原始文档：结构块数量一致（section / 可视化块 / 表格行 / 标签数）
+  2. QuickLook 截图逐屏对比，视觉一致（颜色、圆角、间距、栅格列数）
+  3. 用 -c 只选部分组件时，对应块消失、其余不受影响
+  4. bun test 全绿；paper doctor 全绿

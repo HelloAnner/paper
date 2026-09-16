@@ -109,11 +109,10 @@ export default defineComponent({
       const variant = String(block.variant ?? "chart").trim();
       if (variant === "attribution") {
         const items = objectItems(block.items);
-        // items 形式：原文档的 .attribution-grid 是两列，放一组归因卡
+        // items 形式：原文档两张归因卡并排，容器固定是 .attribution-grid（两列）
         if (items.length > 0) {
           const panels = await Promise.all(items.map((item) => attributionPanel(ctx, item)));
-          const body = panels.filter(Boolean).join("");
-          return items.length > 1 ? "<div class=\"attribution-grid\">" + body + "</div>" : body;
+          return "<div class=\"attribution-grid\">" + panels.filter(Boolean).join("") + "</div>";
         }
         return attributionPanel(ctx, block);
       }

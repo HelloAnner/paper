@@ -1,6 +1,10 @@
 安装与开发流程
 ================================================================
 
+当前模板都是 HTML，字体只有 PDF 模板才用得上；
+  但 make install 仍然会准备字体（约 20MB），因为 core/pdf-kit.ts 的 doctor 自检
+  与将来的 pdf 模板都要用。想省这一步可以先只跑 make install-cli / make install-skill。
+
 make install 做四件事
 
     1. cli 依赖            cd cli && bun install
@@ -59,7 +63,7 @@ Makefile 目标
 开发循环
 
     make dev ARGS='list'                       # 源码模式，改完直接跑
-    make dev ARGS='gen weekly-report -d /tmp/d.json -o /tmp/a.docx'
+    make dev ARGS='gen prd-html -d /tmp/d.json -o /tmp/a.html'
     cd cli && bun run scripts/preview.ts /tmp/a.pdf 1,2   # pdf 导 png 自查
     make check                                 # typecheck + test + build
 

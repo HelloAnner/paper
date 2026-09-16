@@ -56,16 +56,19 @@ paper doctor                          # 环境异常时自检
 可选组件是"有数据才出现"：填了 risks 就出风险表，不填就不生成。
 也可以 `-c metrics,risks` 强制只出这几块（顺序即渲染顺序）。
 
-## 三个内置模板
+## 两套内置模板（都是 HTML）
 
-    weekly-report     工作周报（docx）    概况 + 指标 + 进展 + 风险 + 下阶段计划
-    analysis-report   分析报告（pdf）     封面 + 摘要 + 指标卡 + 章节 + 数据表 + 结论
-    brief-html        一页速览（html）    要点 + 键值 + 表格，单文件可分享/打印
-    prd-html          产品需求文档（html） 页眉条 + 标题区 + 阅读目录 + 多级标题 + 数据表 + 内联 SVG 图
+    prd-html        产品需求文档    页眉条 + 标题区 + 两列目录 + 多级标题 + 数据表 + 内联 SVG 图
+    analysis-html   数据分析报告    导航 + hero 结论 + 指标卡 + 行为链路 + 进度条 + 热力网格 + 场景卡 + 明细表
 
-其中 prd-html 是"文档型模板"：data.json 的 blocks[] 是一个有序数组，每个块有 type
-（h2/h3/h4/p/list/quote/table/figure），按顺序渲染成整篇文档。写长文档、方案、PRD
-优先用它；短内容用 brief-html。细节见 references/prd-blocks.md。
+两套都是"文档型模板"：data.json 用有序结构描述全文，模板逐块分发给对应组件，
+所以顺序由数据决定，也能用 `-c` 只出某几类块。
+
+    · 写 PRD / 技术方案 / 评审材料（章节 + 表格 + 示意图）  -> prd-html
+    · 写数据分析报告（KPI 卡 + 排名 + 热力网格 + 明细表）     -> analysis-html
+
+选不准时先 `paper list` 读两者的 useWhen。数据模型分别见
+references/prd-blocks.md 与 references/report-blocks.md。
 
 ## 正文内联写法（html 模板通用）
 
