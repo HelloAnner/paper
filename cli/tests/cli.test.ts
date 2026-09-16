@@ -36,14 +36,14 @@ describe("cli 契约", () => {
   });
 
   test("list <id> --json 输出组件清单", () => {
-    const { code, stdout } = runCli(["list", "weekly-report", "--json"]);
+    const { code, stdout } = runCli(["list", "prd-html", "--json"]);
     expect(code).toBe(0);
     const payload = JSON.parse(stdout) as { components: { id: string }[] };
-    expect(payload.components.map((c) => c.id)).toContain("summary");
+    expect(payload.components.map((c) => c.id)).toContain("tables");
   });
 
   test("describe --json 带 schema 与 sample", () => {
-    const { code, stdout } = runCli(["describe", "analysis-report", "--json"]);
+    const { code, stdout } = runCli(["describe", "prd-html", "--json"]);
     expect(code).toBe(0);
     const payload = JSON.parse(stdout) as { schema: Record<string, unknown>; sample: Record<string, unknown> };
     expect(Object.keys(payload.schema).length).toBeGreaterThan(3);
@@ -145,6 +145,104 @@ describe("prd-html 文档模型", () => {
   test("未知块类型不会让渲染失败，只是被跳过", async () => {
     const html = await renderHtml({ title: "T", blocks: [{ type: "wat", text: "x" }, { type: "p", text: "活着" }] });
     expect(html).toContain("活着");
+  });
+});
+
+describe("analysis-html 报告模型", () => {
+  const template = () => allTemplates().find((t) => t.meta.id === "analysis-html")!;
+
+  async function renderHtml(data: Record<string, unknown>, components?: string[]): Promise<string> {
+    const { artifact } = await renderTemplate({ template: template(), data, components });
+    const { data: bytes } = await materialize(artifact);
+    return Buffer.from(bytes).toString("utf8");
+  }
+
+  const sample = () => template().sample as Record<string, unknown>;
+
+  test("样例渲染出导航、分节头、指标卡与热力格", async () => {
+    const html = await renderHtml(sample());
+    expect(html).toContain("<!doctype html>");
+    expect(html).toContain('<nav><div class="inner">');
+    expect(html).toContain('href="#overview"');
+    expect(html).toContain('class="hero-verdict"');
+    expect(html).toContain('<section class="section" id="overview">');
+    expect(html).toContain('<div class="section-head">');
+    expect(html).toContain("<h2>巡检全景</h2>");
+    expect(html).toContain('class="side-note"');
+    expect(html).toContain('class="card metric blue"');
+    expect(html).toContain('class="card metric red"');
+    expect(html).toContain('class="flow-connector"');
+    expect(html).toContain('class="bar-row"');
+    expect(html).toContain('class="blocker-row"');
+    expect(html).toContain('class="heat-cell heat-4"');
+    expect(html).toContain('class="heat-cell heat-label"');
+    expect(html).toContain('class="scene-family-grid"');
+    expect(html).toContain('class="stacked-bar"');
+  });
+
+  test("v2 独立块：panel / banner / proofs / steps / donut / stats / note", async () => {
+    const html = await renderHtml(sample());
+    expect(html).toContain('<div class="chart-panel">');
+    expect(html).toContain('class="chart-subtitle"');
+    expect(html).toContain('<div class="attribution-grid">');
+    expect(html).toContain('<div class="attribution-panel">');
+    expect(html).toContain('<div class="step">');
+    expect(html).toContain('<div class="attribution-kpis">');
+    expect(html).toContain('<div class="truth-banner"><div class="mark">!</div>');
+    expect(html).toContain('<div class="proof-grid">');
+    expect(html).toContain('class="proof-card amber"');
+    expect(html).toContain('class="proof-value">184<small>次</small>');
+    expect(html).toContain('<div class="roadmap">');
+    expect(html).toContain('class="roadmap-step"');
+    expect(html).toContain('<div class="distribution-line"');
+    expect(html).toContain('class="donut"');
+    expect(html).toContain("conic-gradient(var(--blue) 0% 22.3%");
+    expect(html).toContain('class="concentration-copy"');
+    expect(html).toContain('<div class="evidence-note"><strong>');
+    expect(html).toContain('<div class="card green"><div class="metric label">最容易形成结果</div>');
+  });
+
+  test("明细表三种单元格写法与折叠说明", async () => {
+    const html = await renderHtml(sample());
+    expect(html).toContain('<div class="table-wrap">');
+    expect(html).toContain("<caption>");
+    expect(html).toContain('<td class="tenant-name">一号车间点检班<code>…4c9a21</code></td>');
+    expect(html).toContain('<td class="num-cell">412</td>');
+    expect(html).toContain('<td class="num-cell">268<span class="mini-bar"><i style="width:100%"></i></span></td>');
+    expect(html).toContain('<span class="field-tag">照片 8</span>');
+    expect(html).toContain('<span class="field-tag none">无</span>');
+    expect(html).toContain("<details open>");
+    expect(html).toContain('<div class="detail-body">');
+  });
+
+  test("-c 只选部分组件时，其它块族不出现", async () => {
+    const proseOnly = await renderHtml(sample(), ["prose"]);
+    expect(proseOnly).toContain("<h3>");
+    expect(proseOnly).toContain('class="sub-label blue"');
+    expect(proseOnly).toContain('class="truth-banner"');
+    expect(proseOnly).toContain('class="callout"');
+    expect(proseOnly).not.toContain("<nav");
+    expect(proseOnly).not.toContain("<table");
+    expect(proseOnly).not.toContain('class="card metric');
+    expect(proseOnly).not.toContain('class="chart-panel"');
+    expect(proseOnly).not.toContain('class="donut"');
+    expect(proseOnly).not.toContain('class="proof-grid"');
+
+    const chartsOnly = await renderHtml(sample(), ["charts"]);
+    expect(chartsOnly).toContain('class="chart-panel"');
+    expect(chartsOnly).toContain('class="bar-row"');
+    expect(chartsOnly).toContain('class="heat-cell heat-0"');
+    expect(chartsOnly).toContain('class="donut"');
+    expect(chartsOnly).toContain('<div class="attribution-grid">');
+    expect(chartsOnly).not.toContain("<table");
+    expect(chartsOnly).not.toContain('class="card metric');
+    expect(chartsOnly).not.toContain('class="attribution-kpi');
+  });
+
+  test("静态产出不使用 reveal 类，可见性不依赖 JS", async () => {
+    const html = await renderHtml(sample());
+    expect(html).not.toMatch(/class="[^"]*reveal/);
+    expect(html).not.toContain("<script");
   });
 });
 
