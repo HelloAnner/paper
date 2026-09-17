@@ -1,0 +1,101 @@
+progress-docx · 国企阶段性进度报告（Word）
+================================================================
+
+定位
+  把"真实国企阶段报告 docx"的排版固化成 Word 模板：
+  封面 + 自动目录 + 三级标题 + 首行缩进正文 + 灰底表头数据表 + 居中图表题 + 页脚页码。
+  AI 只填内容（JSON），排版一律由模板保证。
+
+什么时候用它
+  向甲方、上级单位或科技管理部门提交 阶段进展报告 / 中期报告 / 里程碑汇报，
+  需要正式 Word 版式、封面、目录、统一字体与页码时用它。
+  短通知、纯表格统计不适合它。
+
+一、先看清"为什么样板不能直接抄"
+  样板 docx 有 164 个样式，但正文 1291 段全部用默认样式，字体和字号直接写在每个
+  run 上（宋体 886 处 / 黑体 205 处 / 楷体 16 处，字号 9~15pt 混着来）。
+  照抄 styles.xml 会得到一堆没人用的样式；真正要固化的是"角色"：
+
+    位置（实例）                     角色（固化对象）
+    ───────────────────────         ──────────────────────
+    封面主标题 / 副标题              cover-title / cover-subtitle
+    章节标题 / 小节标题              h1 / h2 / h3
+    正文段落                         body（首行缩进 2 字符）
+    列表 / 引文 / 注释               list / quote / note
+    表头 / 表内容 / 表题             table-head / table-text / table-caption
+    插图 / 图注                      figure / caption
+    页眉 / 页脚                      header / footer
+
+  规则 = 全局默认 + 角色覆盖；一致性由默认保证，差异只写覆盖项。
+
+二、角色规格（cli/src/templates/progress-docx/style.ts）
+
+  角色                 中文字体  字号   加粗  其他
+  ──────────────────────────────────────────────────────────────
+  cover-title          黑体      24pt   是    居中，深蓝 17365D
+  cover-subtitle       黑体      15pt   是    居中，蓝 1F4D78
+  cover-label/value    黑体/宋体 11pt   否/否 封面要素表
+  toc-title            黑体      16pt   是    居中
+  toc-1/2/3            黑体/宋体 12/12/10.5pt 是/否/否  逐级缩进
+  h1 / h2 / h3         黑体      15/13/12pt 是   大纲级别 0/1/2，段前 18/12/9pt
+  body                 宋体      12pt   否    1.5 倍行距，首行缩进 2 字符
+  list                 宋体      12pt   否    编号列表
+  quote                楷体      12pt   否    左缩进 2 字符 + 左竖线
+  note                 宋体      10.5pt 否    灰色，左缩进 2 字符
+  table-head/text      宋体      10.5pt 是/否 灰底 E7E6E6 / 细线 8C8C8C
+  caption              宋体      10.5pt 否    居中（图题）
+  table-caption        宋体      10.5pt 否    居中（表题，在表上方）
+  footer / header      宋体      9pt    否    灰色
+
+  西文统一 Times New Roman；字体只存字体名，由打开文档的机器解析。
+
+  这些角色会写进 docx 的样式表：打开 Word 的"样式"面板能看到 paper-* 条目，
+  改样式即可全局改版式，不用碰任何代码。
+
+三、数据模型（paper describe progress-docx 是权威版）
+
+    cover      封面（title 必填；classify/code/fields/org/date 可选）
+    tocLabel   目录标题，缺省「目  录」；填 false 关闭目录
+    header     正文页眉文字（可选）
+    footer     页脚左侧文字；右侧固定是「第 X 页 / 共 Y 页」
+    blocks[]   正文，顺序即版面顺序
+    signoff    落款（可选）
+
+  blocks 支持的块类型：
+
+    h1 / h2 / h3   章节标题（自动编号）
+    p              正文段落（首行缩进 2 字符）
+    list           列表（ordered: true 为有序）
+    quote          引文（楷体 + 左竖线）
+    note           注释（灰色小字）
+    table          数据表（head / rows / widths / align / caption）
+    figure         插图（src 指图片路径，或 png 填 base64；caption 为图注）
+    pageBreak      强制分页
+
+  正文行内支持：**粗体**、单反引号代码、==强调==。
+
+四、编号规则（blocks.ts 的 planBlocks）
+    标题：h1 每章 +1；h2 在章内 +1；h3 在节内 +1  ->  1 / 1.1 / 1.1.1
+    表图：按一级章节分组  ->  表 1-1、表 2-3、图 2-1
+    标题文字已经带编号（"1 项目背景"）或写了 numbered:false 时不再自动加。
+
+五、目录为什么可靠
+  不依赖 Word 的 TOC 域样式，而是自己排版：每条 = 标题文字 + 点线 + PAGEREF 域。
+    · 字体、缩进、点线、页码右对齐全部由角色规范控制，和正文风格严格一致；
+    · PAGEREF 指向标题上的书签，页码是动态域，打开文档时自动更新为真实页码；
+    · 文档 settings 里写了 updateFields，Word / WPS 打开即刷新。
+  注意：不刷新域的阅读器（如 macOS 预览）只会显示标题文字，页码为空；
+  在 Word / WPS 里打开或按 F9 更新域即可。
+
+六、分节与页码
+    第 1 节  封面      无页脚、无页码
+    第 2 节  目录      无页码（目录页不参与正文页码）
+    第 3 节  正文      页脚「第 X 页 / 共 Y 页」，页码从 1 开始
+  没有 blocks 时目录节自动省略。
+
+七、写数据时的注意
+  · 标题不要手写编号，交给模板；确有特殊编号再加 numbered:false。
+  · 表格列多时给 widths（相对值，如 [2,3,3,4]），别让某一列被挤成一字一行。
+  · 图用 src 指向相对 data.json 的 png/jpg；宽图可写 widthMm 限制宽度。
+  · 数字口径要和正文一致（合计、环比、百分比）。
+  · 生成后核对文字：textutil -convert txt out.docx -stdout。

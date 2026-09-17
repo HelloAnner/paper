@@ -4,8 +4,10 @@
 import type { TemplateModule } from "../core/types";
 import t_analysis_html from "../templates/analysis-html/template";
 import t_prd_html from "../templates/prd-html/template";
+import t_progress_docx from "../templates/progress-docx/template";
 
 export const templates: TemplateModule[] = [
   t_analysis_html,
   t_prd_html,
+  t_progress_docx,
 ];

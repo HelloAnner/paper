@@ -54,7 +54,7 @@ export async function renderTemplate(request: RenderRequest): Promise<RenderResu
   const { template, data } = request;
   const format = template.meta.format;
   const selected = selectComponents(template, data, request.components);
-  const docx = createDocxKit();
+  const docx = createDocxKit(template.meta.docx);
   const html = createHtmlKit();
 
   /** 每次渲染都要一份全新的 ctx（组件缓存不能跨遍复用）。 */

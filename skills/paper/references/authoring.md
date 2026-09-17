@@ -18,10 +18,14 @@ cli/src/templates/<模板 id>/          # 文件夹名就是模板 id
 
 ## 最小模板（docx）
 
+docx 模板的排版由 `meta.docx` 的角色规范决定（字体、字号、缩进、间距），
+组件只写"这段是什么角色"。规范细节见下一节。
+
 ```ts
 import { defineTemplate } from "../../core/types";
 import type { DocxBlock } from "../../core/docx-kit";
 import intro from "./components/intro/component";
+import { MY_DOCX_SPEC } from "./style";
 
 export default defineTemplate({
   meta: {
@@ -31,6 +35,7 @@ export default defineTemplate({
     description: "一句话说明产出什么",
     useWhen: "什么场景选它（AI 挑模板就看这句，写具体）",
     tags: ["报告"],
+    docx: MY_DOCX_SPEC,        // 角色样式规范：run.ts 用它构造 ctx.docx
   },
   schema: {
     title: { type: "string", required: true, desc: "标题", example: "示例标题" },
@@ -40,16 +45,22 @@ export default defineTemplate({
   components: [intro],
   sample: { title: "示例标题" },   // 可选；缺省由 schema 的 example 生成
   async render(ctx) {
-    const blocks: DocxBlock[] = [
-      ...ctx.docx.title(String(ctx.data.title ?? "")),
-      ...ctx.use("intro"),
-    ];
-    return { kind: "docx", document: ctx.docx.document(blocks, { footer: "我的文档" }) };
+    const body: DocxBlock[] = [...ctx.use("intro")];
+    return {
+      kind: "docx",
+      document: ctx.docx.document({
+        sections: [
+          { blocks: [...ctx.docx.heading("paper-title", ctx.data.title)] },   // 封面节（可加 footer: null）
+          { blocks: body, footer: { pageNumber: true }, pageNumberStart: 1 },  // 正文节，页码从 1
+        ],
+        title: String(ctx.data.title ?? ""),
+      }),
+    };
   },
 });
 ```
 
-组件（docx 组件返回块数组）：
+组件（docx 组件返回块数组，只写角色）：
 
 ```ts
 import { defineComponent } from "../../../../core/types";
@@ -66,16 +77,38 @@ export default defineComponent({
     // useWhen: "data.intro 有内容时自动出现",
   },
   render(ctx): DocxBlock[] {
-    return [...ctx.docx.h1("开篇"), ...ctx.docx.p(String(ctx.data.intro ?? ""))];
+    return [...ctx.docx.heading("paper-h1", "开篇"), ...ctx.docx.blocks("paper-body", ctx.data.intro)];
   },
 });
 ```
 
+### docx 角色样式规范（meta.docx）
+
+    fonts   { body, heading, alt, mono, latin }    中文字体 + 西文字体
+    colors  { text, muted, accent, coverTitle, border, tableHeadFill, ... }
+    defaultRole  "paper-body"                       其余角色缺省继承它
+    marginMm                                      A4 页边距（mm）
+    roles   { "paper-body": {...}, "paper-h1": {...}, ... }
+
+角色字段：`name / font / size / bold / color / align / before / after / line /
+firstLineChars / left / hanging / outline / keepNext / pageBreakBefore / shading /
+borderLeft / borderTop`。
+
+- `size` 用半磅（24 = 12pt）；`line` 240 = 单倍、360 = 1.5 倍；
+  `firstLineChars` 是"首行缩进几个字符"（中文正文写 200 = 2 字符）。
+- `outline` 是 0/1/2… 大纲级别；目录按它取层级。
+- 规范会写进 docx 的样式表（Word 样式面板显示 paper-* 角色），改规范即全局改版式。
+- 组件调用形如 `ctx.docx.para("paper-h1", text)`、`ctx.docx.table({...})`、
+  `ctx.docx.figure({...})`、`ctx.docx.toc({ entries })`，一律不写字号和颜色。
+- 参考实现：`templates/progress-docx/style.ts`。
+
 ## 三种格式的约定
 
-- **docx**：组件返回 `DocxBlock[]`，模板拼装后交给 `ctx.docx.document(blocks, {...})`。
-  积木见 core/docx-kit.ts：title / h1 / h2 / h3 / p / lines / meta / bullets / numbered /
-  kv / table / quote / code / rule / spacer / pageBreak。
+- **docx**：组件返回 `DocxBlock[]`，模板按节拼装后交给
+  `ctx.docx.document({ sections, ... })`。积木见 core/docx-kit.ts：
+  rich / para / paraText / blocks / heading / list / bookmark / table / coverTable /
+  kv / figure / toc / rule / spacer / pageBreak / section / document。
+  多节用于"封面无页脚 / 目录无页码 / 正文页码从 1"这种分节版式。
 - **pdf**：组件直接往 `ctx.pdf` 上画（无返回值），调用顺序即文档顺序，分页用
   `ctx.pdf.pageBreak()`。积木见 core/pdf-kit.ts（含 table / metricCards / cover）。
   第 1 页是封面时在 `meta.page` 写 `cover: true`（封面不画页眉页脚，页码从正文算起）。
@@ -128,5 +161,6 @@ export default defineComponent({
 3. `bun run src/cli.ts list <模板 id>` / `describe <模板 id>` 输出是否可读
 4. `bun run src/cli.ts gen <模板 id> -d sample.json -o /tmp/x.<ext>` 后肉眼验证：
    - pdf：`bun run scripts/preview.ts /tmp/x.pdf 1,2` 导出 PNG 看图
-   - docx：`textutil -convert txt /tmp/x.docx -stdout | head`
+   - docx：`textutil -convert txt /tmp/x.docx -stdout | head`；
+     目录页是动态域，用 `python3 -c` 解压看 document.xml 里的 PAGEREF / sectPr 更可靠
 5. 改了命令 / 参数 / 模板行为，同步更新 `skills/paper` 与 `docs/*.txt`

@@ -18,20 +18,39 @@ core 公共层（唯一允许复用的地方）
       fonts.ts      字体发现与来源提示
       ttf.ts        sfnt 解析 / 打包 / 稀疏子集化
 
-docx-kit 能力（返回块数组，模板自己拼）
+docx-kit 能力（角色化：样式进 spec，组件只写角色）
 
-    title(text, subtitle?)     大标题（左侧色条）
-    h1 / h2 / h3               分级标题
-    p / lines                  段落（lines 按 \n 拆段）
-    meta(text)                 小号灰色说明行
-    bullets / numbered         无序 / 有序列表（用真实编号定义，Word 里可继续）
-    kv([[label, value]])       两列无边框信息表
-    table({head, rows, widths, align, zebra, caption})
-    quote / code / rule / spacer / pageBreak
-    document(blocks, {title, author, footer, header, pageNumber, marginMm})
-        -> docx Document（A4 + 页边距 + 页眉页脚 + 中文字体默认样式）
+    规范 DocxSpec
+      fonts / colors / roles / defaultRole / marginMm
+      role = { name, font, size, bold, color, align, before/after/line,
+               firstLineChars, left, hanging, outline, keepNext,
+               pageBreakBefore, shading, borderLeft/borderTop }
+      -> styleDefinitions() 把角色写成 Word 样式表（paper-* 条目）
 
-    字体：西文 Calibri，中文微软雅黑（docx 只存字体名，由打开文档的机器解析）
+    行内 / 段落
+      rich(text)                 行内富文本 -> TextRun[]（**粗体** / 反引号代码 / ==强调==）
+      para(role, children)       按角色造段落（children 可含书签等）
+      paraText(role, text)       空文本返回 null
+      blocks(role, text)         多行文本 -> 段数组
+      heading(role, text) / list(role, items, ordered)
+      bookmark(name, children)   标题书签（目录 PAGEREF 用）
+
+    版式积木（返回块数组，模板自己拼）
+      table({head, rows, widths, align, zebra, caption, captionRole})
+      coverTable(fields, roles)  封面四列要素表（灰底标签 + 细线）
+      kv([[label, value]])       两列无边框信息表
+      figure({data, type, widthMm, caption})   图片按原比例缩放到版心，图注居中
+      toc({entries, title, entryRoles})        目录：文字 + 点线 + PAGEREF 动态页码
+      rule / spacer / pageBreak
+      imageSize(bytes)           读 PNG/JPEG 像素尺寸（按比例缩放用）
+
+    组装
+      section({blocks, footer, header, pageNumberStart, titlePage})
+      document({sections, title, author, updateFields})
+          -> docx Document（A4 + 页边距 + 多节 + 角色样式表 + 目录域自动更新）
+
+    字体：只存字体名（正文宋体/西文 Times New Roman，标题黑体，引文楷体），
+          由打开文档的机器解析；页脚页码用 PAGE / NUMPAGES 域。
 
 pdf-kit 能力（顺序调用，内部维护 y 游标与分页）
 

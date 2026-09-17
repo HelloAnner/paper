@@ -45,6 +45,25 @@
       render(ctx) { ... }
     })
 
+docx 模板的角色样式规范（meta.docx）
+  docx 模板的字体 / 字号 / 缩进 / 间距不写在组件里，而是在 meta.docx 里声明"角色"：
+
+    meta: { ...,
+      docx: {
+        fonts: { body: "宋体", heading: "黑体", alt: "楷体", mono: "Consolas", latin: "Times New Roman" },
+        colors: { text, muted, accent, coverTitle, coverSubtitle, border, tableHeadFill, ... },
+        defaultRole: "paper-body",
+        roles: {
+          "paper-body": { name: "正文", font: "body", size: 24, line: 360, firstLineChars: 200 },
+          "paper-h1":   { name: "一级标题", font: "heading", size: 30, bold: true, outline: 0, keepNext: true },
+          ...
+        },
+      } }
+
+  run.ts 用这份规范构造 ctx.docx。规范会写进 docx 的样式表（Word 样式面板里能看到
+  paper-* 角色），所以组件只写 ctx.docx.para("paper-h1", text) 这类"角色"，不写魔法数字。
+  参考实现：templates/progress-docx/style.ts。
+
 文档型模板（blocks 数组 + renderBlock）
   当一个模板对应"一整篇长文档"时，别用一个组件渲染全文，而是：
     · 数据侧：blocks[] 有序数组，每块带 type（见 docs/06-prd-html.txt）

@@ -1,6 +1,25 @@
-# 内置模板速查（两套，都是 HTML）
+# 内置模板速查（两套 HTML + 一套 Word）
 
 选模板只看 `paper list` 里的 useWhen；确定后先 `paper describe <模板 id>` 读数据契约。
+
+## progress-docx · 国企阶段性进度报告（Word）
+
+用途：向甲方 / 上级单位 / 科技管理部门提交阶段进展报告、中期报告、里程碑汇报。
+产出正式 Word：封面 + 自动目录 + 三级标题自动编号 + 首行缩进正文 + 数据表 + 图表题 + 页脚页码。
+数据模型与编号规则见 [progress-docx.md](progress-docx.md)。
+
+    cover     必选  封面：密级/编号 + 主标题 + 副标题 + 项目要素表 + 编制单位/日期
+    toc       可选  自动目录（blocks 里有 h1/h2/h3 且 tocLabel 不为 false）；文字 + 点线 + 动态页码
+    prose     必选  h1/h2/h3（自动编号）、正文、列表、引文、注释、分页
+    tables    可选  type=table 的块：自动表题（表 N-M）、灰底表头、相对列宽、逐列对齐
+    figures   可选  type=figure 的块：按比例缩放，图注自动编号（图 N-M）
+    signoff   可选  正文末尾落款（右对齐）
+
+填写要点：
+- **标题不写编号**，模板自动出 1 / 1.1 / 1.1.1；表图编号也自动（表 1-1、图 2-1）。
+- 列多的表一定给 `widths`（相对值），否则中文长文本会把列挤变形。
+- 图片用 `src` 指相对 data.json 的 png/jpg，宽图用 `widthMm` 限宽。
+- 目录页码是动态域，在 Word / WPS 打开自动刷新；macOS 预览里页码为空属正常。
 
 ## prd-html · 产品需求文档（HTML）
 

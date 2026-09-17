@@ -14,6 +14,7 @@ import { renderTemplate } from "../src/core/run";
 import { materialize, defaultExt } from "../src/core/artifact";
 import { sampleFromSchema, validateData } from "../src/core/schema";
 import { parseInline, plainText } from "../src/core/richtext";
+import { planBlocks, tableCaption, figureCaption } from "../src/templates/progress-docx/blocks";
 
 const CLI = join(import.meta.dir, "..", "src", "cli.ts");
 
@@ -281,6 +282,90 @@ describe("analysis-html 报告模型", () => {
     const html = await renderHtml(sample());
     expect(html).not.toMatch(/class="[^"]*reveal/);
     expect(html).not.toContain("<script");
+  });
+});
+
+describe("progress-docx 报告模型", () => {
+  const template = () => allTemplates().find((t) => t.meta.id === "progress-docx")!;
+
+  async function renderDocx(data: Record<string, unknown>, components?: string[]): Promise<Uint8Array> {
+    const { artifact } = await renderTemplate({ template: template(), data, components });
+    const { data: bytes } = await materialize(artifact);
+    return bytes;
+  }
+
+  // 1x1 PNG：只用来验证图片链路，不参与断言图片内容
+  const TINY_PNG =
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+  test("标题自动编号：1 / 1.1 / 1.1.1，表图按一级章节编号", () => {
+    const plan = planBlocks([
+      { type: "h1", text: "阶段工作摘要" },
+      { type: "p", text: "x" },
+      { type: "table", caption: "成果" },
+      { type: "h1", text: "背景与定位" },
+      { type: "h2", text: "工程背景" },
+      { type: "h3", text: "地质条件" },
+      { type: "table", caption: "进度" },
+      { type: "figure", caption: "分布" },
+      { type: "table", caption: "风险" },
+    ]);
+    expect(plan.heading[0]).toBe("1  阶段工作摘要");
+    expect(plan.heading[3]).toBe("2  背景与定位");
+    expect(plan.heading[4]).toBe("2.1  工程背景");
+    expect(plan.heading[5]).toBe("2.1.1  地质条件");
+    expect(plan.table[2]).toBe("1-1");
+    expect(plan.table[6]).toBe("2-1");
+    expect(plan.table[8]).toBe("2-2");
+    expect(plan.figure[7]).toBe("2-1");
+    expect(plan.bookmark[5]).toBe("H_2_1_1");
+    expect(plan.toc.map((entry) => entry.text)).toEqual(["1  阶段工作摘要", "2  背景与定位", "2.1  工程背景", "2.1.1  地质条件"]);
+  });
+
+  test("已带编号的标题不重复加编号，numbered:false 可关闭", () => {
+    const plan = planBlocks([
+      { type: "h1", text: "1 阶段工作摘要" },
+      { type: "h2", text: "工程背景", numbered: false },
+    ]);
+    expect(plan.heading[0]).toBe("1 阶段工作摘要");
+    expect(plan.heading[1]).toBe("工程背景");
+  });
+
+  test("题注自动加「表 N-M / 图 N-M」，数据自带编号时不重复", () => {
+    expect(tableCaption({ caption: "阶段成果" }, "1-1")).toBe("表 1-1  阶段成果");
+    expect(figureCaption({ caption: "航线分布" }, "2-1")).toBe("图 2-1  航线分布");
+    expect(tableCaption({ caption: "表 3-2 自定义" }, "1-1")).toBe("表 3-2 自定义");
+  });
+
+  test("样例产出 docx；-c 只选 prose 时不出表格和图", async () => {
+    const sample = template().sample as Record<string, unknown>;
+    const full = await renderDocx(sample);
+    expect(Buffer.from(full.slice(0, 2)).toString("latin1")).toBe("PK");
+    expect(full.byteLength).toBeGreaterThan(5000);
+
+    const { selected } = await renderTemplate({ template: template(), data: sample, components: ["prose"] });
+    expect(selected).toEqual(["prose"]);
+  });
+
+  test("内联 PNG 与图片文件都能出图，图片会使产物体积变大", async () => {
+    const base = {
+      cover: { title: "T", fields: [["依托工程", "X"]] },
+      blocks: [
+        { type: "h1", text: "图表示例" },
+        { type: "p", text: "正文" },
+      ],
+    };
+    const without = await renderDocx(base);
+    const withFigure = await renderDocx({
+      ...base,
+      blocks: [...base.blocks, { type: "figure", png: TINY_PNG, caption: "内联图" }],
+    });
+    expect(withFigure.byteLength).toBeGreaterThan(without.byteLength);
+  });
+
+  test("缺少必填的 cover.title 会被 schema 拦下", () => {
+    const { errors } = validateData(template().schema, { cover: { subtitle: "x" }, blocks: [] });
+    expect(errors.some((issue) => issue.path === "cover.title")).toBe(true);
   });
 });
 

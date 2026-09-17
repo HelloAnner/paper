@@ -20,7 +20,7 @@ paper doctor          # 自检
 ```
 
 依赖 [bun](https://bun.sh)（编译单文件二进制）；准备 PDF 中文字体时需要 `python3 + fontTools`。
-两套内置模板都是 HTML，字体流水线目前只服务于 `core/pdf-kit` 的自检与将来的 PDF 模板 —— 想跳过可以只跑 `make install-cli`。
+内置模板里 HTML 与 Word 各就位，PDF 还没有内置模板；字体流水线目前只服务于 `core/pdf-kit` 的自检与将来的 PDF 模板 —— 想跳过可以只跑 `make install-cli`。
 
 ## 使用
 
@@ -37,17 +37,18 @@ paper gen prd-html -d data.json -o 文字稿.html -c prose   # 只出某几类�
 
 ## 内置模板
 
-| 模板 id | 格式 | 产出 |
-|---------|------|------|
 | 模板 id | 格式 | 场景 |
 |---------|------|------|
+| `progress-docx` | docx | 国企阶段性进度报告：封面 + 自动目录 + 三级标题自动编号 + 首行缩进正文 + 灰底表头数据表 + 图表题 + 页脚页码 |
 | `prd-html` | html | 产品需求文档：页眉条 + 标题区 + 两列目录 + 多级标题 + 数据表（状态矩阵）+ 内联 SVG 图 |
 | `analysis-html` | html | 数据分析报告：导航 + hero 结论 + 指标卡 + 行为链路 + 进度条 + 热力网格 + 场景卡 + 明细表 |
 
-两套模板都是**文档型**：数据用有序结构描述全文，模板逐块分发给对应组件，
-顺序由数据决定，同时保留 `-c` 的可选粒度（prd-html 用 `blocks[]`，analysis-html 用 `sections[].blocks[]`）。
-docx / pdf 的公共件（`core/docx-kit.ts`、`core/pdf-kit.ts`、`core/ttf.ts`）保留在 core 里，
-目前没有内置 docx / pdf 模板。
+三套模板都是**文档型**：数据用有序结构描述全文，模板逐块分发给对应组件，
+顺序由数据决定，同时保留 `-c` 的可选粒度（progress-docx / prd-html 用 `blocks[]`，analysis-html 用 `sections[].blocks[]`）。
+docx 的字体 / 字号 / 缩进不进组件，而是模板 `meta.docx` 里的**角色样式规范**
+（如 `paper-body` 宋体 12pt 首行缩进 2 字符、`paper-h1` 黑体 15pt），
+由 `core/docx-kit` 写成 Word 样式表 —— 改规范即全局改版式。见 [docs/08-progress-docx.txt](docs/08-progress-docx.txt)。
+PDF 目前没有内置模板。
 
 ## 目录结构
 
@@ -58,7 +59,7 @@ docx / pdf 的公共件（`core/docx-kit.ts`、`core/pdf-kit.ts`、`core/ttf.ts`
       src/templates/        文档模板（每个模板一个文件夹，不共享业务代码）
       src/generated/        自动生成的模板注册表
       tests/                契约测试 + 所有模板的样例渲染冒烟
-    docs/*.txt              设计文档（纯文本）：总览 / CLI / 模板 / core / 安装 / PRD 模板
+    docs/*.txt              设计文档（纯文本）：总览 / CLI / 模板 / core / 安装 / PRD 模板 / 进度报告模板
     skills/paper/           配套 skill（随 `make install` 软链给 coding agent 用）
     Makefile                install / build / dev / fonts / test / check
 
@@ -66,7 +67,7 @@ docx / pdf 的公共件（`core/docx-kit.ts`、`core/pdf-kit.ts`、`core/ttf.ts`
 
 ```bash
 make dev ARGS='list'                      # 源码模式
-cd cli && bun test                        # 18 项测试
+cd cli && bun test                        # 契约测试 + 所有模板样例渲染冒烟
 make check                                # typecheck + test + build
 bun run scripts/preview.ts out.pdf 1,2    # 把 PDF 某几页导成 PNG，肉眼看排版
 ```

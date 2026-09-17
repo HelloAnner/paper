@@ -47,6 +47,16 @@ export async function readAsset(baseDir: string | undefined, src: string): Promi
   }
 }
 
+/** 读取模板资产二进制（图片等）：相对路径以数据文件所在目录为基准。 */
+export async function readBytes(baseDir: string | undefined, src: string): Promise<Uint8Array> {
+  const target = absPath(src, baseDir ?? process.cwd());
+  try {
+    return new Uint8Array(await readFile(target));
+  } catch (e) {
+    throw toPaperError(e, "E_IO", "读取资源失败 " + target);
+  }
+}
+
 export async function writeText(path: string, content: string): Promise<string> {
   const target = absPath(path);
   await mkdir(dirname(target), { recursive: true });

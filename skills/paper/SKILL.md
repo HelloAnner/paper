@@ -1,6 +1,6 @@
 ---
 name: paper
-description: 生成本地离线专业文档（docx / pdf / html）。当用户要求"生成/写一份报告、周报、分析报告、会议纪要、文档、word、pdf、网页速览""把这份数据做成正式文档""导出成 docx/pdf"时使用。通过 paper CLI 用「固定模板 + 动态数据」产出排版稳定的文档：先 `paper list` 选模板，`paper describe` 读数据契约，`paper sample` 拿示例数据填内容，`paper gen` 生成文件。内置 docx 周报、PDF 分析报告、HTML 速览等模板，支持按组件自由组装。
+description: 生成本地离线专业文档（docx / pdf / html）。当用户要求"生成/写一份报告、周报、分析报告、会议纪要、文档、word、pdf、网页速览""把这份数据做成正式文档""导出成 docx/pdf"时使用。通过 paper CLI 用「固定模板 + 动态数据」产出排版稳定的文档：先 `paper list` 选模板，`paper describe` 读数据契约，`paper sample` 拿示例数据填内容，`paper gen` 生成文件。内置 Word 阶段性进度报告、HTML 产品需求文档 / 数据分析报告模板，支持按组件自由组装。
 ---
 
 # paper —— 本地离线文档生成 CLI
@@ -56,19 +56,30 @@ paper doctor                          # 环境异常时自检
 可选组件是"有数据才出现"：填了 risks 就出风险表，不填就不生成。
 也可以 `-c metrics,risks` 强制只出这几块（顺序即渲染顺序）。
 
-## 两套内置模板（都是 HTML）
+## 内置模板（两套 HTML + 一套 Word）
 
-    prd-html        产品需求文档    页眉条 + 标题区 + 两列目录 + 多级标题 + 数据表 + 内联 SVG 图
-    analysis-html   数据分析报告    导航 + hero 结论 + 指标卡 + 行为链路 + 进度条 + 热力网格 + 场景卡 + 明细表
+    progress-docx   国企阶段性进度报告（Word）  封面 + 自动目录 + 三级标题自动编号 + 首行缩进正文
+                                                + 灰底表头数据表 + 居中图表题 + 页脚页码
+    prd-html        产品需求文档（HTML）        页眉条 + 标题区 + 两列目录 + 多级标题 + 数据表 + 内联 SVG 图
+    analysis-html   数据分析报告（HTML）        导航 + hero 结论 + 指标卡 + 行为链路 + 进度条 + 热力网格 + 场景卡 + 明细表
 
-两套都是"文档型模板"：data.json 用有序结构描述全文，模板逐块分发给对应组件，
+三套都是"文档型模板"：data.json 用有序结构描述全文（progress-docx / prd-html 用 blocks[]，
+analysis-html 用 sections[].blocks[]），模板逐块分发给对应组件，
 所以顺序由数据决定，也能用 `-c` 只出某几类块。
 
-    · 写 PRD / 技术方案 / 评审材料（章节 + 表格 + 示意图）  -> prd-html
-    · 写数据分析报告（KPI 卡 + 排名 + 热力网格 + 明细表）     -> analysis-html
+    · 写阶段进展报告 / 中期报告 / 里程碑汇报，要 Word 正式版式  -> progress-docx
+    · 写 PRD / 技术方案 / 评审材料（章节 + 表格 + 示意图）      -> prd-html
+    · 写数据分析报告（KPI 卡 + 排名 + 热力网格 + 明细表）       -> analysis-html
 
-选不准时先 `paper list` 读两者的 useWhen。数据模型分别见
-references/prd-blocks.md 与 references/report-blocks.md。
+选不准时先 `paper list` 读三者的 useWhen。
+
+progress-docx 要点（详见 references/progress-docx.md）：
+- 标题不要手写编号：模板自动出 1 / 1.1 / 1.1.1，表图自动出「表 1-1」「图 2-1」。
+- 目录是「文字 + 点线 + PAGEREF 动态页码」，在 Word / WPS 打开即刷新；
+  只在 macOS 预览里看会只显示标题、页码为空，属正常现象。
+- 字体按角色固化（宋体正文 / 黑体标题 / 楷体引文），不要试图在数据里指定字体。
+
+数据模型分别见 references/progress-docx.md、references/prd-blocks.md、references/report-blocks.md。
 
 ## 正文内联写法（html 模板通用）
 
@@ -79,6 +90,7 @@ references/prd-blocks.md 与 references/report-blocks.md。
 细节见：
 - [references/cli.md](references/cli.md)              命令与输出契约
 - [references/templates.md](references/templates.md)  每个模板的字段要点
+- [references/progress-docx.md](references/progress-docx.md) progress-docx 的 blocks 模型与编号规则
 - [references/prd-blocks.md](references/prd-blocks.md) prd-html 的 blocks 文档模型（写长文档必读）
 - [references/authoring.md](references/authoring.md)  新增模板 / 组件（给 coding agent）
 

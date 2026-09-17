@@ -55,9 +55,15 @@ paper —— 本地离线文档生成 CLI
   必选组件保证文档骨架一致；可选组件跟着数据自动出现，
   所以同一模板能同时应付"三行摘要"和"十几页长文"。
 
-内置模板（v0.2，两套都是 HTML）
-  prd-html       产品需求文档 —— blocks 文档型：多级标题 + 数据表（状态矩阵）+ 内联 SVG 图
-  analysis-html  数据分析报告 —— sections 结构：指标卡 + 行为链路 + 进度条 + 热力网格 + 场景卡 + 明细表
+内置模板（v0.3，两套 HTML + 一套 Word）
+  prd-html       产品需求文档（HTML）—— blocks 文档型：多级标题 + 数据表（状态矩阵）+ 内联 SVG 图
+  analysis-html  数据分析报告（HTML）—— sections 结构：指标卡 + 行为链路 + 进度条 + 热力网格 + 场景卡 + 明细表
+  progress-docx  国企阶段性进度报告（Word）—— 封面 + 自动目录 + 三级标题自动编号 + 首行缩进正文
+                 + 灰底表头数据表 + 居中图表题 + 页脚页码；字体按角色固化（宋体正文 / 黑体标题 / 楷体引文）
+
+  docx 模板的排版走"角色样式规范"：模板 meta.docx 里声明字体、字号、缩进、间距，
+  core/docx-kit 把它写成 Word 样式表（paper-* 角色），组件只写"这段是什么角色"。
+  规范与样例见 docs/08-progress-docx.txt。
 
 两种模板形态
   1. 拼装型：模板 render 里显式写死排版顺序，组件各管一段（数据量小、结构固定的文档）。
@@ -72,8 +78,8 @@ paper —— 本地离线文档生成 CLI
      好处：长文档的顺序由数据决定（不用在代码里复述目录结构），同时保留
      --component 的可选择粒度。契约见 docs/06-prd-html.txt 与 docs/07-data-report-html.txt。
 
-  两种形态都保留 docx / pdf 的公共件（core/docx-kit.ts、core/pdf-kit.ts、core/ttf.ts），
-  但目前没有内置 docx / pdf 模板 —— 等具体文档样式定了，再按模板文件夹硬编码一份。
+  docx / pdf 的公共件（core/docx-kit.ts、core/pdf-kit.ts、core/ttf.ts）都已就绪：
+  docx 已有 progress-docx 模板；pdf 还没有内置模板 —— 等具体文档样式定了，再按模板文件夹硬编码一份。
 
 命令总览
   paper list [<模板 id>]       列模板 / 列该模板的组件

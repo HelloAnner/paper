@@ -6,7 +6,7 @@
  */
 
 import type { Schema } from "./schema";
-import type { DocxKit } from "./docx-kit";
+import type { DocxKit, DocxSpec } from "./docx-kit";
 import type { PdfBuilder, PdfInitOptions } from "./pdf-kit";
 import type { HtmlKit } from "./html-kit";
 
@@ -25,6 +25,11 @@ export interface TemplateMeta {
   tags?: string[];
   /** pdf / html 的页面参数 */
   page?: PdfInitOptions;
+  /**
+   * docx 模板的角色样式规范：字体、字号、颜色、缩进、间距都写在这里。
+   * 只对 format="docx" 的模板有意义；run.ts 会用它构造 ctx.docx。
+   */
+  docx?: Partial<DocxSpec>;
 }
 
 export interface ComponentMeta {
